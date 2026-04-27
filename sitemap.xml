@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://apextoolsai.com/</loc>
+    <lastmod>2026-04-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://apextoolsai.com/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://apextoolsai.com/es/"/>
+  </url>
+  <url>
+    <loc>https://apextoolsai.com/es/</loc>
+    <lastmod>2026-04-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://apextoolsai.com/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://apextoolsai.com/es/"/>
+  </url>
+</urlset>

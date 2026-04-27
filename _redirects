@@ -1,0 +1,10 @@
+# Spanish version trailing slash normalization
+/es /es/ 301
+/es/index.html /es/ 301
+
+# WWW to apex
+https://www.apextoolsai.com/* https://apextoolsai.com/:splat 301!
+
+# Old language paths if anyone links wrong
+/spanish /es/ 301
+/english / 301
