@@ -48,6 +48,8 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
         <i data-lucide="calendar-days" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Appointments</span></a>
       <a href="#reports" data-section="reports" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
         <i data-lucide="bar-chart-3" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Reports</span></a>
+      <a href="#integrations" data-section="integrations" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="plug" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Integrations</span></a>
       <a href="#billing" data-section="billing" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
         <i data-lucide="credit-card" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Billing</span></a>
       <a href="#support" data-section="support" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
@@ -184,6 +186,22 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
         </div>
       </section>
 
+
+      <!-- INTEGRATIONS -->
+      <section id="section-integrations" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Integrations</h1>
+        <p class="text-navy-600 text-sm mb-6">Connect your calendar and practice management software so appointments booked by your AI receptionist sync automatically.</p>
+        <div id="integrationCards" class="grid md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+        <div id="integrationModal" class="hidden fixed inset-0 z-50 bg-navy-900/60 flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+              <h2 id="imTitle" class="font-display font-bold text-xl text-navy-900"></h2>
+              <button id="imClose" class="text-navy-400 hover:text-navy-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="imBody"></div>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 </div>
@@ -241,7 +259,7 @@ function routeSection() {
   if (target) target.classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('nav-active', n.dataset.section === hash));
   // Load data
-  ({ overview: loadOverview, calls: loadCalls, configure: loadConfigure, calendar: loadCalendar, reports: loadReports, billing: loadBilling, support: loadSupport })[hash]?.();
+  ({ overview: loadOverview, calls: loadCalls, configure: loadConfigure, calendar: loadCalendar, reports: loadReports, billing: loadBilling, support: loadSupport, integrations: loadIntegrations })[hash]?.();
 }
 
 // ---- OVERVIEW ----
@@ -566,5 +584,168 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
 });
 
 init();
+
+// ===== INTEGRATIONS =====
+const PROVIDERS = {
+  google_calendar: { label: 'Google Calendar', icon: 'calendar', color: 'bg-blue-50 text-blue-600 border-blue-200', desc: 'Auto-create calendar events when the AI books an appointment.' },
+  nexhealth: { label: 'NexHealth (Dentrix / Open Dental / Eaglesoft)', icon: 'database', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', desc: 'Push appointments straight into your dental practice management system.' },
+  calendly: { label: 'Calendly', icon: 'link-2', color: 'bg-orange-50 text-orange-600 border-orange-200', desc: 'Text patients your Calendly link so they self-book a slot.' },
+};
+
+async function loadIntegrations() {
+  const wrap = document.getElementById('integrationCards');
+  wrap.innerHTML = '<div class="col-span-3 text-navy-400 text-sm">Loading...</div>';
+  let data;
+  try { data = await api('/api/integrations'); }
+  catch { wrap.innerHTML = '<div class="col-span-3 text-red-600 text-sm">Failed to load integrations.</div>'; return; }
+  wrap.innerHTML = '';
+  for (const [key, meta] of Object.entries(PROVIDERS)) {
+    const ig = data.integrations[key] || { status: 'disconnected' };
+    const connected = ig.status === 'connected';
+    const errored = ig.status === 'error';
+    const statusBadge = connected
+      ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"><i data-lucide="check-circle" class="w-3 h-3"></i> Connected</span>'
+      : errored
+      ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"><i data-lucide="alert-circle" class="w-3 h-3"></i> Error</span>'
+      : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-navy-100 text-navy-600">Not connected</span>';
+    const detail = connected && ig.config
+      ? `<div class="text-xs text-navy-500 mt-2">${escapeHtml(ig.config.email || ig.config.subdomain || ig.config.scheduling_url || '')}</div>`
+      : errored && ig.last_error
+      ? `<div class="text-xs text-red-600 mt-2 break-words">${escapeHtml(ig.last_error.slice(0, 140))}</div>`
+      : '';
+    const button = connected
+      ? `<button data-action="disconnect" data-provider="${key}" class="text-sm text-red-600 hover:underline font-medium">Disconnect</button>`
+      : `<button data-action="connect" data-provider="${key}" class="bg-navy-900 hover:bg-navy-800 text-white font-semibold text-sm px-4 py-2 rounded-lg">Connect</button>`;
+    wrap.insertAdjacentHTML('beforeend', `
+      <div class="bg-white rounded-2xl border border-navy-100 p-5">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="w-10 h-10 rounded-lg ${meta.color} border flex items-center justify-center"><i data-lucide="${meta.icon}" class="w-5 h-5"></i></div>
+          ${statusBadge}
+        </div>
+        <h3 class="font-display font-bold text-navy-900 mb-1">${meta.label}</h3>
+        <p class="text-sm text-navy-600 mb-3">${meta.desc}</p>
+        ${detail}
+        <div class="mt-4 flex justify-end">${button}</div>
+      </div>
+    `);
+  }
+  lucide.createIcons();
+  wrap.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', onIntegrationAction));
+}
+
+async function onIntegrationAction(e) {
+  const action = e.currentTarget.dataset.action;
+  const provider = e.currentTarget.dataset.provider;
+  if (action === 'disconnect') {
+    if (!confirm(`Disconnect ${PROVIDERS[provider].label}?`)) return;
+    await fetch(`/api/integrations/${provider}/disconnect`, { method: 'POST', credentials: 'include' });
+    loadIntegrations();
+    return;
+  }
+  // Connect flow per provider
+  if (provider === 'google_calendar') {
+    window.location.href = '/api/integrations/google/start';
+    return;
+  }
+  if (provider === 'nexhealth') openNexHealthModal();
+  if (provider === 'calendly') openCalendlyModal();
+}
+
+function openModal(title, bodyHtml) {
+  document.getElementById('imTitle').textContent = title;
+  document.getElementById('imBody').innerHTML = bodyHtml;
+  document.getElementById('integrationModal').classList.remove('hidden');
+  lucide.createIcons();
+}
+function closeModal() { document.getElementById('integrationModal').classList.add('hidden'); }
+
+function openNexHealthModal() {
+  openModal('Connect NexHealth', `
+    <p class="text-sm text-navy-600 mb-4">Get your <strong>API Key</strong> from your NexHealth account → Developer Settings. Your <strong>subdomain</strong> is the prefix in your NexHealth login URL (e.g. <code>hollywood-smile-dental</code> if you log in at hollywood-smile-dental.nexhealth.com).</p>
+    <form id="nhForm" class="space-y-3">
+      <div><label class="block text-sm font-semibold text-navy-700 mb-1">NexHealth API Key</label><input id="nhKey" type="password" required class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm" placeholder="nx_..."></div>
+      <div><label class="block text-sm font-semibold text-navy-700 mb-1">Subdomain</label><input id="nhSub" type="text" required class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm" placeholder="your-practice"></div>
+      <div id="nhSelect" class="hidden space-y-3">
+        <div><label class="block text-sm font-semibold text-navy-700 mb-1">Location</label><select id="nhLoc" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></select></div>
+        <div><label class="block text-sm font-semibold text-navy-700 mb-1">Provider</label><select id="nhProv" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></select></div>
+        <div><label class="block text-sm font-semibold text-navy-700 mb-1">Operatory (optional)</label><select id="nhOp" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"><option value="">(none)</option></select></div>
+      </div>
+      <div id="nhErr" class="hidden text-sm text-red-600"></div>
+      <button type="submit" id="nhSubmit" class="w-full bg-navy-900 text-white font-semibold py-2.5 rounded-lg">Continue</button>
+    </form>
+  `);
+  document.getElementById('nhForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    document.getElementById('nhErr').classList.add('hidden');
+    const apiKey = document.getElementById('nhKey').value.trim();
+    const subdomain = document.getElementById('nhSub').value.trim();
+    const locId = document.getElementById('nhLoc')?.value;
+    const provId = document.getElementById('nhProv')?.value;
+    const opId = document.getElementById('nhOp')?.value || null;
+    const r = await fetch('/api/integrations/nexhealth/connect', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey, subdomain, location_id: locId || null, provider_id: provId || null, operatory_id: opId }),
+    });
+    const data = await r.json();
+    if (!r.ok) { const err = document.getElementById('nhErr'); err.textContent = data.error || 'Failed'; err.classList.remove('hidden'); return; }
+    if (data.needs_selection) {
+      document.getElementById('nhSelect').classList.remove('hidden');
+      const locSel = document.getElementById('nhLoc'); locSel.innerHTML = data.resources.locations.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+      const provSel = document.getElementById('nhProv'); provSel.innerHTML = data.resources.providers.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+      const opSel = document.getElementById('nhOp');
+      const updateOps = () => {
+        const sel = data.resources.providers.find(p => String(p.id) === provSel.value);
+        opSel.innerHTML = '<option value="">(none)</option>' + (sel?.operatories || []).map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+      };
+      provSel.onchange = updateOps; updateOps();
+      document.getElementById('nhSubmit').textContent = 'Save & Connect';
+      return;
+    }
+    closeModal(); loadIntegrations();
+  });
+}
+
+function openCalendlyModal() {
+  openModal('Connect Calendly', `
+    <p class="text-sm text-navy-600 mb-4">Get a <strong>Personal Access Token</strong> from <a href="https://calendly.com/integrations/api_webhooks" target="_blank" class="text-accent-600 underline">Calendly → Integrations → API & Webhooks</a>. Paste it below.</p>
+    <form id="cdForm" class="space-y-3">
+      <div><label class="block text-sm font-semibold text-navy-700 mb-1">Calendly Personal Access Token</label><input id="cdPat" type="password" required class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm" placeholder="eyJ..."></div>
+      <div id="cdSelect" class="hidden">
+        <label class="block text-sm font-semibold text-navy-700 mb-1">Event Type</label>
+        <select id="cdType" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></select>
+        <p class="text-xs text-navy-500 mt-1">When the AI books an appointment, we will text the patient this booking link so they pick a slot.</p>
+      </div>
+      <div id="cdErr" class="hidden text-sm text-red-600"></div>
+      <button type="submit" id="cdSubmit" class="w-full bg-navy-900 text-white font-semibold py-2.5 rounded-lg">Continue</button>
+    </form>
+  `);
+  document.getElementById('cdForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    document.getElementById('cdErr').classList.add('hidden');
+    const pat = document.getElementById('cdPat').value.trim();
+    const sel = document.getElementById('cdType');
+    const url = sel?.value || null;
+    const r = await fetch('/api/integrations/calendly/connect', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pat, scheduling_url: url }),
+    });
+    const data = await r.json();
+    if (!r.ok) { const err = document.getElementById('cdErr'); err.textContent = data.error || 'Failed'; err.classList.remove('hidden'); return; }
+    if (data.needs_selection) {
+      document.getElementById('cdSelect').classList.remove('hidden');
+      sel.innerHTML = (data.event_types || []).map(t => `<option value="${t.scheduling_url}">${escapeHtml(t.name)} (${t.duration} min)</option>`).join('');
+      document.getElementById('cdSubmit').textContent = 'Save & Connect';
+      return;
+    }
+    closeModal(); loadIntegrations();
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'imClose' || e.target.closest('#imClose') || e.target.id === 'integrationModal') closeModal();
+});
+
 </script>
 </body></html>

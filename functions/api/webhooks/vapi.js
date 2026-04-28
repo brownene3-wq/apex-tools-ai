@@ -2,6 +2,7 @@
 // Maps the Vapi assistant ID to our client_id, then inserts call_logs / appointments.
 // Configure Vapi assistant Server URL = https://apextoolsai.com/api/webhooks/vapi
 import { json, newId, logUsage } from '../../_lib.js';
+import { pushAppointmentToAll } from '../../_integrations.js';
 
 export async function onRequestPost({ request, env }) {
   let body;
@@ -57,6 +58,16 @@ export async function onRequestPost({ request, env }) {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(apptId, client.id, id, structured.patient_name || 'Unknown', structured.patient_phone || callerNumber, structured.service || '', apptAt, 'booked', Date.now()).run();
       await logUsage(env, client.id, 'appointment_booked');
+      try {
+        await pushAppointmentToAll(env, client.id, {
+          patient_name: structured.patient_name || 'Unknown',
+          patient_phone: structured.patient_phone || callerNumber,
+          patient_email: structured.patient_email || null,
+          service: structured.service || '',
+          appointment_at: apptAt,
+          notes: summary || '',
+        });
+      } catch (e) { console.error('[integrations push]', e); }
     }
 
     return json({ ok: true, call_logged: true });
@@ -79,6 +90,16 @@ export async function onRequestPost({ request, env }) {
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(apptId, client.id, args.patientName || 'Unknown', args.patientPhone || '', args.appointmentType || '', apptAt, 'booked', Date.now()).run();
         await logUsage(env, client.id, 'appointment_booked', { name: args.patientName });
+        try {
+          await pushAppointmentToAll(env, client.id, {
+            patient_name: args.patientName || 'Unknown',
+            patient_phone: args.patientPhone || '',
+            patient_email: args.patientEmail || null,
+            service: args.appointmentType || '',
+            appointment_at: apptAt,
+            notes: args.notes || '',
+          });
+        } catch (e) { console.error('[integrations push]', e); }
         responses.push({ toolCallId: fc.id, result: 'Appointment booked successfully.' });
       } else if (name === 'sendUrgentAlert') {
         // Send SMS to escalation number — stub here, Twilio API call would go here

@@ -229,3 +229,21 @@ CREATE TABLE IF NOT EXISTS gmail_config (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+-- Per-client integration connections (Google Calendar, NexHealth, Calendly, etc.)
+CREATE TABLE IF NOT EXISTS client_integrations (
+  id TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  status TEXT DEFAULT 'connected', -- connected, error, disconnected
+  credentials_json TEXT, -- encrypted-at-rest by Cloudflare; tokens, API keys, etc.
+  config_json TEXT,      -- non-sensitive provider config (calendar_id, location_id, scheduling_url, etc.)
+  last_pushed_at INTEGER,
+  last_error TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(client_id, provider),
+  FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+CREATE INDEX IF NOT EXISTS idx_client_integrations_client ON client_integrations(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_integrations_provider ON client_integrations(provider);
