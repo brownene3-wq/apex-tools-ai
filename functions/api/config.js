@@ -1,13 +1,13 @@
 // GET /api/config — fetch current AI config for client
-// PATCH /api/config — update fields (any of: hours_json, services_json, insurance_json, faqs_json, voice_id, greeting, escalation_phone, language_pref, business_name, business_address, phone)
+// PATCH /api/config — update fields and push to Vapi
 import { json, requireAuth, error, logUsage } from '../_lib.js';
+import { syncAssistant } from '../_vapi.js';
 
 const ALLOWED_FIELDS = ['hours_json', 'services_json', 'insurance_json', 'faqs_json', 'voice_id', 'greeting', 'escalation_phone', 'language_pref', 'business_name', 'business_address', 'phone', 'practice_type'];
 
 export async function onRequestGet(context) {
   const err = requireAuth(context); if (err) return err;
-  const { env } = context;
-  const row = await env.DB.prepare(
+  const row = await context.env.DB.prepare(
     'SELECT email, full_name, business_name, business_address, phone, practice_type, language_pref, hours_json, services_json, insurance_json, faqs_json, voice_id, greeting, escalation_phone, twilio_phone_number, vapi_assistant_id FROM clients WHERE id = ?'
   ).bind(context.data.user.id).first();
   if (!row) return error('Client not found', 404);
@@ -32,8 +32,16 @@ export async function onRequestPatch(context) {
 
   await logUsage(env, context.data.user.id, 'config_changed', { fields: Object.keys(updates) });
 
-  // TODO: push update to Vapi assistant (when VAPI_ORG_TOKEN env is set)
-  // const vapi = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {...})
+  // Reload full client and sync to Vapi
+  const client = await env.DB.prepare('SELECT * FROM clients WHERE id = ?').bind(context.data.user.id).first();
+  let syncResult = null;
+  if (client.vapi_assistant_id) {
+    syncResult = await syncAssistant(env, client);
+  }
 
-  return json({ ok: true });
+  return json({
+    ok: true,
+    vapi_synced: !!syncResult?.ok,
+    vapi_error: syncResult?.ok === false ? (syncResult.error || syncResult.data?.message) : null,
+  });
 }
