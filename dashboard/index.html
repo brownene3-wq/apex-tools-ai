@@ -70,6 +70,10 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
 
   <!-- MAIN -->
   <main class="flex-1 lg:ml-64 pt-16 lg:pt-0">
+  <div id="adminViewBanner" class="hidden bg-amber-50 border-b border-amber-200 px-4 lg:px-8 py-2.5 flex items-center justify-between text-sm">
+    <span class="text-amber-900"><strong>Admin preview:</strong> you're viewing the customer dashboard.</span>
+    <a href="/admin/" class="text-amber-900 font-semibold hover:underline inline-flex items-center gap-1.5"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to admin panel</a>
+  </div>
     <div class="max-w-6xl mx-auto px-4 lg:px-8 py-8 lg:py-10">
 
       <div id="userBanner" class="mb-6 text-sm text-navy-500"></div>
@@ -215,7 +219,13 @@ async function init() {
     const { user: u } = await api('/api/auth/me');
     user = u;
     document.getElementById('userBanner').textContent = `Signed in as ${u.business_name || u.email}`;
-    if (u.is_admin) { window.location.href = '/admin/'; return; }
+    // Admin: by default bounce to /admin/, but allow ?as=customer to stay and view as a client
+    const viewingAsCustomer = new URLSearchParams(location.search).has('as');
+    if (u.is_admin && !viewingAsCustomer) { window.location.href = '/admin/'; return; }
+    if (u.is_admin && viewingAsCustomer) {
+      const banner = document.getElementById('adminViewBanner');
+      if (banner) banner.classList.remove('hidden');
+    }
   } catch { window.location.href = '/login.html'; return; }
   lucide.createIcons();
   routeSection();
