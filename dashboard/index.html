@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard · Apex Tools AI</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+tailwind.config = { theme: { extend: { colors: {
+  navy: { 50:'#f0f4f9', 100:'#dbe5f1', 200:'#c2d2e6', 600:'#1e3a5f', 700:'#172a4a', 800:'#0f1e36', 900:'#0a1628', 950:'#050b18' },
+  accent: { 50:'#fff7ed', 100:'#ffedd5', 400:'#fb923c', 500:'#f97316', 600:'#ea580c', 700:'#c2410c' },
+}, fontFamily: { sans: ['Inter','sans-serif'], display: ['Plus Jakarta Sans','sans-serif'] } } } };
+</script>
+<style>
+body{font-family:Inter,sans-serif;background:#f8fafc}
+.font-display{font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.02em}
+.gradient-text{background:linear-gradient(135deg,#f97316 0%,#fbbf24 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav-active{background:rgb(15 30 54);color:white}
+.nav-active .nav-icon{color:#f97316}
+.toast{animation:slideUp 0.3s ease-out}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+[x-cloak]{display:none!important}
+</style>
+</head>
+<body class="text-navy-900">
+
+<!-- LAYOUT -->
+<div class="flex min-h-screen">
+
+  <!-- SIDEBAR -->
+  <aside class="hidden lg:flex w-64 bg-white border-r border-navy-100 flex-col fixed h-full">
+    <div class="px-5 py-5 border-b border-navy-100">
+      <a href="/" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 bg-navy-900 rounded-lg flex items-center justify-center"><i data-lucide="phone-call" class="w-5 h-5 text-accent-500"></i></div>
+        <div class="font-display font-bold text-lg">Apex Tools <span class="text-accent-500">AI</span></div>
+      </a>
+    </div>
+    <nav class="flex-1 p-3 space-y-1 text-sm">
+      <a href="#overview" data-section="overview" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Overview</span></a>
+      <a href="#calls" data-section="calls" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="phone-incoming" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Call History</span></a>
+      <a href="#configure" data-section="configure" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="sliders-horizontal" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Configure AI</span></a>
+      <a href="#calendar" data-section="calendar" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="calendar-days" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Appointments</span></a>
+      <a href="#reports" data-section="reports" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="bar-chart-3" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Reports</span></a>
+      <a href="#billing" data-section="billing" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="credit-card" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Billing</span></a>
+      <a href="#support" data-section="support" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="life-buoy" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Support</span></a>
+    </nav>
+    <div class="p-3 border-t border-navy-100 space-y-1">
+      <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-navy-600 hover:bg-navy-50">
+        <i data-lucide="external-link" class="w-4 h-4"></i> Back to website</a>
+      <button id="signoutBtn" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50">
+        <i data-lucide="log-out" class="w-4 h-4"></i> Sign out</button>
+    </div>
+  </aside>
+
+  <!-- MOBILE NAV -->
+  <header class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-navy-100 px-4 py-3 flex items-center justify-between">
+    <button id="mobileNav" class="p-2 rounded-lg"><i data-lucide="menu" class="w-5 h-5"></i></button>
+    <span class="font-display font-bold text-lg">Apex Tools <span class="text-accent-500">AI</span></span>
+    <button id="signoutMobile" class="p-2 text-red-600"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 lg:ml-64 pt-16 lg:pt-0">
+    <div class="max-w-6xl mx-auto px-4 lg:px-8 py-8 lg:py-10">
+
+      <div id="userBanner" class="mb-6 text-sm text-navy-500"></div>
+
+      <!-- All sections render here -->
+      <section id="section-overview" class="section">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h1 class="font-display text-3xl font-extrabold text-navy-900">Overview</h1>
+            <p class="text-navy-600 text-sm mt-1">Real-time stats from your AI receptionist</p>
+          </div>
+        </div>
+        <div id="overviewStats" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8"></div>
+        <div class="bg-white rounded-2xl border border-navy-100 p-6 mb-6">
+          <h2 class="font-display font-bold text-lg mb-4">Daily Calls — Last 7 Days</h2>
+          <div class="h-64"><canvas id="overviewChart"></canvas></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-navy-100 p-6">
+          <h2 class="font-display font-bold text-lg mb-4">Recent Calls</h2>
+          <div id="overviewRecent"></div>
+        </div>
+      </section>
+
+      <section id="section-calls" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Call History</h1>
+        <p class="text-navy-600 text-sm mb-6">Every call your AI handled — listen, read transcripts, see outcomes.</p>
+        <div class="bg-white rounded-2xl border border-navy-100 p-4 mb-4 flex flex-wrap gap-3">
+          <input id="callQ" placeholder="Search number or transcript..." class="flex-1 min-w-[180px] px-3 py-2 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500">
+          <select id="callLang" class="px-3 py-2 border border-navy-200 rounded-lg text-sm">
+            <option value="">All languages</option><option value="en">English</option><option value="es">Spanish</option>
+          </select>
+          <select id="callUrgent" class="px-3 py-2 border border-navy-200 rounded-lg text-sm">
+            <option value="">All calls</option><option value="1">Urgent only</option>
+          </select>
+          <button id="callRefresh" class="px-4 py-2 bg-navy-900 text-white text-sm rounded-lg font-medium hover:bg-navy-800">Refresh</button>
+        </div>
+        <div id="callsTable" class="bg-white rounded-2xl border border-navy-100 overflow-hidden"></div>
+      </section>
+
+      <section id="section-configure" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Configure Your AI</h1>
+        <p class="text-navy-600 text-sm mb-6">Update your practice info — changes go live within 30 seconds.</p>
+        <div id="configForm" class="space-y-6"></div>
+      </section>
+
+      <section id="section-calendar" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Appointments</h1>
+        <p class="text-navy-600 text-sm mb-6">Every appointment your AI booked.</p>
+        <div id="apptList" class="bg-white rounded-2xl border border-navy-100"></div>
+      </section>
+
+      <section id="section-reports" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Performance Reports</h1>
+        <p class="text-navy-600 text-sm mb-6">Monthly summaries — automatically generated.</p>
+        <div id="reportsArea" class="bg-white rounded-2xl border border-navy-100 p-6"></div>
+      </section>
+
+      <section id="section-billing" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Billing</h1>
+        <p class="text-navy-600 text-sm mb-6">Manage your subscription, payment method, and invoices.</p>
+        <div class="bg-white rounded-2xl border border-navy-100 p-6 max-w-2xl">
+          <div id="billingInfo"></div>
+          <button id="openPortal" class="mt-4 inline-flex items-center gap-2 bg-navy-900 hover:bg-navy-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm transition-colors">
+            <i data-lucide="external-link" class="w-4 h-4"></i> Open Billing Portal
+          </button>
+          <p class="text-xs text-navy-500 mt-3">Powered by Stripe — manage payment method, update card, view invoices, cancel subscription.</p>
+        </div>
+      </section>
+
+      <section id="section-support" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Support</h1>
+        <p class="text-navy-600 text-sm mb-6">Submit a ticket — we typically respond within 4 hours during business hours.</p>
+        <div class="grid lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl border border-navy-100 p-6">
+            <h2 class="font-display font-bold text-lg mb-4">Open a New Ticket</h2>
+            <form id="ticketForm" class="space-y-4">
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Subject</label>
+                <input id="tkSubject" required class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-semibold text-navy-700 mb-1">Category</label>
+                  <select id="tkCategory" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+                    <option value="question">Question</option><option value="bug">Bug Report</option>
+                    <option value="feature">Feature Request</option><option value="billing">Billing</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-navy-700 mb-1">Priority</label>
+                  <select id="tkPriority" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+                    <option value="low">Low</option><option value="normal" selected>Normal</option>
+                    <option value="high">High</option><option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Message</label>
+                <textarea id="tkBody" required rows="5" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></textarea>
+              </div>
+              <button type="submit" class="w-full bg-accent-500 hover:bg-accent-600 text-white font-semibold py-2.5 rounded-lg">Submit Ticket</button>
+            </form>
+          </div>
+          <div class="bg-white rounded-2xl border border-navy-100 p-6">
+            <h2 class="font-display font-bold text-lg mb-4">Your Tickets</h2>
+            <div id="ticketList"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div id="toastHost" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
+
+<script>
+const escapeHtml = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+const fmtDate = ts => new Date(Number(ts)).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+const fmtDuration = s => { if (!s) return '–'; const m = Math.floor(s/60); const sec = s%60; return m ? `${m}m ${sec}s` : `${sec}s`; };
+const toast = (msg, type='success') => {
+  const colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-navy-900' };
+  const el = document.createElement('div');
+  el.className = `toast ${colors[type]} text-white px-5 py-3 rounded-lg shadow-xl text-sm font-medium`;
+  el.textContent = msg;
+  document.getElementById('toastHost').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+};
+const api = async (url, opts={}) => {
+  const r = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) }, ...opts });
+  if (r.status === 401) { window.location.href = '/login.html'; return; }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Request failed');
+  return data;
+};
+
+let user = null;
+let chart = null;
+
+// ---- INIT ----
+async function init() {
+  try {
+    const { user: u } = await api('/api/auth/me');
+    user = u;
+    document.getElementById('userBanner').textContent = `Signed in as ${u.business_name || u.email}`;
+    if (u.is_admin) { window.location.href = '/admin/'; return; }
+  } catch { window.location.href = '/login.html'; return; }
+  lucide.createIcons();
+  routeSection();
+  window.addEventListener('hashchange', routeSection);
+  document.getElementById('signoutBtn').onclick = () => fetch('/api/auth/logout').then(() => location.href = '/');
+  document.getElementById('signoutMobile').onclick = () => fetch('/api/auth/logout').then(() => location.href = '/');
+}
+
+function routeSection() {
+  const hash = (location.hash || '#overview').replace('#','').split('/')[0];
+  document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+  const target = document.getElementById('section-' + hash);
+  if (target) target.classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('nav-active', n.dataset.section === hash));
+  // Load data
+  ({ overview: loadOverview, calls: loadCalls, configure: loadConfigure, calendar: loadCalendar, reports: loadReports, billing: loadBilling, support: loadSupport })[hash]?.();
+}
+
+// ---- OVERVIEW ----
+async function loadOverview() {
+  const data = await api('/api/dashboard');
+  if (!data) return;
+  const m = data.metrics;
+  const stats = [
+    { label: 'Calls Today', value: m.calls_today, icon: 'phone', color: 'text-navy-900' },
+    { label: 'Calls This Week', value: m.calls_week, icon: 'trending-up', color: 'text-green-600' },
+    { label: 'Calls This Month', value: m.calls_month, icon: 'calendar', color: 'text-navy-900' },
+    { label: 'Total Captured', value: m.calls_total, icon: 'check-circle-2', color: 'text-accent-600' },
+    { label: 'Appointments / 30d', value: m.appointments_month, icon: 'calendar-check', color: 'text-green-600' },
+    { label: 'Urgent Calls / 7d', value: m.urgent_week, icon: 'bell-ring', color: 'text-red-600' },
+  ];
+  document.getElementById('overviewStats').innerHTML = stats.map(s => `
+    <div class="bg-white rounded-2xl border border-navy-100 p-5">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold text-navy-500 uppercase tracking-wide">${escapeHtml(s.label)}</span>
+        <i data-lucide="${s.icon}" class="w-4 h-4 ${s.color}"></i>
+      </div>
+      <div class="font-display text-3xl font-extrabold ${s.color}">${s.value}</div>
+    </div>`).join('');
+
+  // Daily chart
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('overviewChart');
+  const labels = (data.daily || []).map(d => new Date(d.day).toLocaleDateString('en-US', { weekday: 'short' }));
+  const counts = (data.daily || []).map(d => d.calls);
+  const booked = (data.daily || []).map(d => d.booked || 0);
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Calls', data: counts, backgroundColor: '#1e3a5f', borderRadius: 6 },
+      { label: 'Appointments Booked', data: booked, backgroundColor: '#f97316', borderRadius: 6 },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+  });
+
+  // Recent
+  const recent = data.recent_calls || [];
+  document.getElementById('overviewRecent').innerHTML = recent.length === 0
+    ? '<div class="py-8 text-center text-navy-500 text-sm">No calls yet — your AI is ready and waiting.</div>'
+    : `<div class="divide-y divide-navy-100">${recent.map(c => `
+        <div class="py-3 flex items-center justify-between text-sm">
+          <div>
+            <div class="font-semibold text-navy-900">${escapeHtml(c.caller_number || 'Unknown')}</div>
+            <div class="text-xs text-navy-500">${fmtDate(c.call_started_at)} · ${fmtDuration(c.duration_seconds)} · ${c.language === 'es' ? '🇲🇽' : '🇺🇸'} ${c.language || 'en'}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${c.was_appointment_booked ? '<span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">Booked</span>' : ''}
+            ${c.was_urgent ? '<span class="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">Urgent</span>' : ''}
+          </div>
+        </div>`).join('')}</div>`;
+  lucide.createIcons();
+}
+
+// ---- CALLS ----
+async function loadCalls() {
+  const q = document.getElementById('callQ').value;
+  const lang = document.getElementById('callLang').value;
+  const urgent = document.getElementById('callUrgent').value;
+  const params = new URLSearchParams({ limit: '100', q, lang, urgent });
+  const data = await api('/api/calls?' + params);
+  if (!data) return;
+  const c = data.calls;
+  document.getElementById('callsTable').innerHTML = c.length === 0
+    ? '<div class="py-12 text-center text-navy-500 text-sm">No calls yet.</div>'
+    : `<table class="w-full text-sm"><thead class="bg-navy-50 text-xs uppercase tracking-wide text-navy-600"><tr>
+        <th class="px-4 py-3 text-left">When</th><th class="px-4 py-3 text-left">Caller</th><th class="px-4 py-3 text-left">Duration</th>
+        <th class="px-4 py-3 text-left">Language</th><th class="px-4 py-3 text-left">Outcome</th></tr></thead><tbody>
+        ${c.map(r => `<tr class="border-t border-navy-100 hover:bg-navy-50/50">
+          <td class="px-4 py-3">${fmtDate(r.call_started_at)}</td>
+          <td class="px-4 py-3 font-mono">${escapeHtml(r.caller_number || '–')}</td>
+          <td class="px-4 py-3">${fmtDuration(r.duration_seconds)}</td>
+          <td class="px-4 py-3">${r.language === 'es' ? 'Spanish' : 'English'}</td>
+          <td class="px-4 py-3">${r.was_urgent ? '<span class="text-red-600 font-semibold">Urgent</span> · ' : ''}${r.was_appointment_booked ? '<span class="text-green-600 font-semibold">Booked</span>' : (r.ended_reason || 'Completed')}</td>
+        </tr>`).join('')}</tbody></table>`;
+}
+['callQ','callLang','callUrgent','callRefresh'].forEach(id => {
+  const el = document.getElementById(id);
+  if (id === 'callRefresh') el?.addEventListener('click', loadCalls);
+  else el?.addEventListener('change', loadCalls);
+});
+document.getElementById('callQ')?.addEventListener('input', () => clearTimeout(window._cq) || (window._cq = setTimeout(loadCalls, 400)));
+
+// ---- CONFIGURE ----
+async function loadConfigure() {
+  const data = await api('/api/config');
+  if (!data) return;
+  const c = data.config;
+  const faqs = c.faqs_json ? (typeof c.faqs_json === 'string' ? JSON.parse(c.faqs_json) : c.faqs_json) : [];
+  const services = c.services_json ? (typeof c.services_json === 'string' ? JSON.parse(c.services_json) : c.services_json) : [];
+  const insurance = c.insurance_json ? (typeof c.insurance_json === 'string' ? JSON.parse(c.insurance_json) : c.insurance_json) : [];
+  const hours = c.hours_json ? (typeof c.hours_json === 'string' ? JSON.parse(c.hours_json) : c.hours_json) : {};
+
+  document.getElementById('configForm').innerHTML = `
+    <div class="bg-white rounded-2xl border border-navy-100 p-6">
+      <h3 class="font-display font-bold text-lg mb-4">Practice Info</h3>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div><label class="block text-sm font-semibold mb-1">Business Name</label><input id="cfgBiz" value="${escapeHtml(c.business_name || '')}" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></div>
+        <div><label class="block text-sm font-semibold mb-1">Practice Type</label>
+          <select id="cfgType" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+            ${['dental','med_spa','chiropractor','law','medical','other'].map(t => `<option value="${t}" ${c.practice_type===t?'selected':''}>${t.replace('_',' ')}</option>`).join('')}
+          </select></div>
+        <div><label class="block text-sm font-semibold mb-1">Address</label><input id="cfgAddr" value="${escapeHtml(c.business_address || '')}" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></div>
+        <div><label class="block text-sm font-semibold mb-1">Office Phone</label><input id="cfgPhone" value="${escapeHtml(c.phone || '')}" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></div>
+        <div><label class="block text-sm font-semibold mb-1">Urgent Call Forward To</label><input id="cfgEsc" value="${escapeHtml(c.escalation_phone || '')}" placeholder="+1..." class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></div>
+        <div><label class="block text-sm font-semibold mb-1">Language Preference</label>
+          <select id="cfgLang" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+            <option value="en" ${c.language_pref==='en'?'selected':''}>English only</option>
+            <option value="es" ${c.language_pref==='es'?'selected':''}>Spanish only</option>
+            <option value="both" ${c.language_pref==='both'?'selected':''}>Both (auto-detect)</option>
+          </select></div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-navy-100 p-6">
+      <h3 class="font-display font-bold text-lg mb-4">Hours of Operation</h3>
+      <div class="grid grid-cols-2 md:grid-cols-7 gap-3">
+        ${['mon','tue','wed','thu','fri','sat','sun'].map(d => `
+          <div><label class="block text-xs font-semibold uppercase tracking-wide text-navy-500 mb-1">${d}</label>
+            <input id="cfgHr_${d}" value="${escapeHtml(hours[d] || '')}" placeholder="9am-5pm" class="w-full px-2 py-1.5 border border-navy-200 rounded text-sm"></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-navy-100 p-6">
+      <h3 class="font-display font-bold text-lg mb-2">Services</h3>
+      <p class="text-xs text-navy-500 mb-3">One per line, format: "Service Name | Price"  e.g.  "Cleaning | $150"</p>
+      <textarea id="cfgServ" rows="6" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm font-mono">${escapeHtml(services.map(s => `${s.name} | ${s.price || ''}`).join('\n'))}</textarea>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-navy-100 p-6">
+      <h3 class="font-display font-bold text-lg mb-2">Insurance Accepted</h3>
+      <p class="text-xs text-navy-500 mb-3">One per line.</p>
+      <textarea id="cfgIns" rows="4" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">${escapeHtml(insurance.join('\n'))}</textarea>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-navy-100 p-6">
+      <h3 class="font-display font-bold text-lg mb-2">Frequently Asked Questions</h3>
+      <p class="text-xs text-navy-500 mb-3">Format: "Question | Answer", one per line.</p>
+      <textarea id="cfgFaq" rows="10" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm font-mono">${escapeHtml(faqs.map(f => `${f.q} | ${f.a}`).join('\n'))}</textarea>
+    </div>
+
+    <div class="flex justify-end gap-3">
+      <button id="cfgSave" class="bg-accent-500 hover:bg-accent-600 text-white font-semibold px-6 py-2.5 rounded-full transition-colors">Save Changes</button>
+    </div>`;
+
+  document.getElementById('cfgSave').onclick = async () => {
+    const services = document.getElementById('cfgServ').value.split('\n').filter(Boolean).map(line => {
+      const [name, price] = line.split('|').map(s => s.trim());
+      return { name, price };
+    });
+    const insurance = document.getElementById('cfgIns').value.split('\n').map(s => s.trim()).filter(Boolean);
+    const faqs = document.getElementById('cfgFaq').value.split('\n').filter(Boolean).map(line => {
+      const [q, a] = line.split('|').map(s => s.trim());
+      return { q, a };
+    });
+    const hours = {};
+    ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => { hours[d] = document.getElementById('cfgHr_' + d).value.trim(); });
+
+    try {
+      await api('/api/config', { method: 'PATCH', body: JSON.stringify({
+        business_name: document.getElementById('cfgBiz').value,
+        practice_type: document.getElementById('cfgType').value,
+        business_address: document.getElementById('cfgAddr').value,
+        phone: document.getElementById('cfgPhone').value,
+        escalation_phone: document.getElementById('cfgEsc').value,
+        language_pref: document.getElementById('cfgLang').value,
+        hours_json: JSON.stringify(hours),
+        services_json: JSON.stringify(services),
+        insurance_json: JSON.stringify(insurance),
+        faqs_json: JSON.stringify(faqs),
+      })});
+      toast('Configuration saved. Changes go live in ~30 seconds.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  };
+}
+
+// ---- CALENDAR ----
+async function loadCalendar() {
+  const data = await api('/api/appointments?upcoming=1');
+  if (!data) return;
+  const a = data.appointments;
+  document.getElementById('apptList').innerHTML = a.length === 0
+    ? '<div class="py-12 text-center text-navy-500 text-sm">No upcoming appointments yet.</div>'
+    : `<div class="divide-y divide-navy-100">${a.map(r => `
+      <div class="px-6 py-4 flex items-center justify-between">
+        <div>
+          <div class="font-semibold text-navy-900">${escapeHtml(r.patient_name)} <span class="text-navy-400 text-xs ml-2">${escapeHtml(r.patient_phone || '')}</span></div>
+          <div class="text-sm text-navy-500">${escapeHtml(r.service || 'Appointment')} · ${fmtDate(r.appointment_at)}</div>
+        </div>
+        <span class="bg-accent-100 text-accent-700 text-xs font-semibold px-2 py-1 rounded-full">${escapeHtml(r.status)}</span>
+      </div>`).join('')}</div>`;
+}
+
+// ---- REPORTS ----
+async function loadReports() {
+  document.getElementById('reportsArea').innerHTML = `
+    <div class="text-center py-8">
+      <i data-lucide="bar-chart-3" class="w-12 h-12 text-accent-500 mx-auto mb-3"></i>
+      <h3 class="font-display font-bold text-xl mb-2">Monthly reports</h3>
+      <p class="text-navy-500 text-sm max-w-md mx-auto">Auto-generated PDF reports with all your AI receptionist's metrics. The first report will be available at the end of your first calendar month.</p>
+    </div>`;
+  lucide.createIcons();
+}
+
+// ---- BILLING ----
+async function loadBilling() {
+  document.getElementById('billingInfo').innerHTML = `
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between"><span class="text-navy-500">Plan</span><span class="font-semibold capitalize">${escapeHtml(user.plan || 'phone')}</span></div>
+      <div class="flex justify-between"><span class="text-navy-500">Status</span><span class="font-semibold capitalize ${user.status === 'active' ? 'text-green-600' : 'text-navy-700'}">${escapeHtml(user.status || 'pending')}</span></div>
+    </div>`;
+  document.getElementById('openPortal').onclick = async () => {
+    try {
+      const r = await api('/api/billing/portal', { method: 'POST' });
+      if (r?.url) window.location.href = r.url;
+    } catch (e) { toast(e.message, 'error'); }
+  };
+}
+
+// ---- SUPPORT ----
+async function loadSupport() {
+  const data = await api('/api/support');
+  if (!data) return;
+  const t = data.tickets;
+  document.getElementById('ticketList').innerHTML = t.length === 0
+    ? '<div class="py-8 text-center text-navy-500 text-sm">You have no support tickets.</div>'
+    : `<div class="divide-y divide-navy-100">${t.map(r => `
+      <div class="py-3">
+        <div class="flex items-center justify-between mb-1">
+          <div class="font-semibold text-sm text-navy-900">${escapeHtml(r.subject)}</div>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${r.status === 'resolved' ? 'bg-green-100 text-green-700' : r.status === 'open' ? 'bg-amber-100 text-amber-700' : 'bg-navy-100 text-navy-700'}">${escapeHtml(r.status)}</span>
+        </div>
+        <div class="text-xs text-navy-500">${escapeHtml(r.category)} · ${escapeHtml(r.priority)} · ${fmtDate(r.created_at)}</div>
+        ${r.replied_at ? '<div class="text-xs text-green-700 font-semibold mt-1">✓ Replied ' + fmtDate(r.replied_at) + '</div>' : ''}
+      </div>`).join('')}</div>`;
+}
+document.getElementById('ticketForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/support', { method: 'POST', body: JSON.stringify({
+      subject: document.getElementById('tkSubject').value,
+      body: document.getElementById('tkBody').value,
+      category: document.getElementById('tkCategory').value,
+      priority: document.getElementById('tkPriority').value,
+    })});
+    toast('Ticket submitted — we\'ll respond within 4 business hours.', 'success');
+    e.target.reset();
+    loadSupport();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+init();
+</script>
+</body></html>

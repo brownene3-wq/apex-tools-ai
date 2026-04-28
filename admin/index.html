@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin · Apex Tools AI</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: { colors: {
+  navy: { 50:'#f0f4f9', 100:'#dbe5f1', 600:'#1e3a5f', 700:'#172a4a', 800:'#0f1e36', 900:'#0a1628', 950:'#050b18' },
+  accent: { 50:'#fff7ed', 100:'#ffedd5', 400:'#fb923c', 500:'#f97316', 600:'#ea580c' },
+}, fontFamily: { sans: ['Inter','sans-serif'], display: ['Plus Jakarta Sans','sans-serif'] } } } };
+</script>
+<style>
+body{font-family:Inter,sans-serif;background:#f8fafc}
+.font-display{font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.02em}
+.gradient-text{background:linear-gradient(135deg,#f97316 0%,#fbbf24 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.nav-active{background:#0a1628;color:white}
+.nav-active .nav-icon{color:#f97316}
+.toast{animation:slideUp 0.3s ease-out}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.dark{background:#050b18;color:#dbe5f1}
+.dark .bg-white{background:#0f1e36;color:#dbe5f1}
+.dark .border-navy-100{border-color:rgba(255,255,255,0.08)}
+.ql-toolbar{border-radius:8px 8px 0 0!important;border-color:#dbe5f1!important}
+.ql-container{border-radius:0 0 8px 8px!important;border-color:#dbe5f1!important;min-height:200px}
+</style>
+</head>
+<body class="text-navy-900">
+
+<div class="flex min-h-screen">
+
+<aside class="hidden lg:flex w-64 bg-white border-r border-navy-100 flex-col fixed h-full">
+  <div class="px-5 py-5 border-b border-navy-100 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2.5">
+      <div class="w-9 h-9 bg-navy-900 rounded-lg flex items-center justify-center"><i data-lucide="shield" class="w-5 h-5 text-accent-500"></i></div>
+      <div>
+        <div class="font-display font-bold text-base">Admin</div>
+        <div class="text-[10px] text-navy-500 uppercase tracking-wide">Apex Tools AI</div>
+      </div>
+    </a>
+    <button id="themeToggle" class="p-1.5 rounded-lg hover:bg-navy-50"><i data-lucide="moon" class="w-4 h-4"></i></button>
+  </div>
+  <nav class="flex-1 p-3 space-y-1 text-sm">
+    <a href="#overview" data-section="overview" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="layout-dashboard" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Overview</span></a>
+    <a href="#subscribers" data-section="subscribers" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="users" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Subscribers</span></a>
+    <a href="#blog" data-section="blog" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="file-text" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Blog CMS</span></a>
+    <a href="#team" data-section="team" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="user-plus" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Team</span></a>
+    <a href="#messages" data-section="messages" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="message-circle" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Messages</span></a>
+    <a href="#email" data-section="email" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="inbox" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Email Inbox</span></a>
+    <a href="#bugs" data-section="bugs" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="bug" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Bug Reports</span></a>
+    <a href="#usage" data-section="usage" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50">
+      <i data-lucide="activity" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Usage</span></a>
+  </nav>
+  <div class="p-3 border-t border-navy-100 space-y-1">
+    <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-navy-600 hover:bg-navy-50"><i data-lucide="external-link" class="w-4 h-4"></i> Back to App</a>
+    <button id="signoutBtn" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"><i data-lucide="log-out" class="w-4 h-4"></i> Sign Out</button>
+  </div>
+</aside>
+
+<header class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-navy-100 px-4 py-3 flex items-center justify-between">
+  <button class="p-2 rounded-lg"><i data-lucide="menu" class="w-5 h-5"></i></button>
+  <span class="font-display font-bold">Admin</span>
+  <button id="signoutMobile" class="p-2 text-red-600"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+</header>
+
+<main class="flex-1 lg:ml-64 pt-16 lg:pt-0">
+<div class="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-10">
+
+<section id="section-overview" class="section">
+  <h1 class="font-display text-3xl font-extrabold mb-1">Overview</h1>
+  <p class="text-navy-600 text-sm mb-6">Apex Tools AI command center.</p>
+  <div id="ovStats" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+  <div class="grid lg:grid-cols-3 gap-6">
+    <div class="bg-white rounded-2xl border border-navy-100 p-5"><h3 class="font-display font-bold mb-3">Users by Plan</h3><div id="ovPlans"></div></div>
+    <div class="bg-white rounded-2xl border border-navy-100 p-5 lg:col-span-2"><h3 class="font-display font-bold mb-3">Recent Signups</h3><div id="ovRecent"></div></div>
+  </div>
+</section>
+
+<section id="section-subscribers" class="section hidden">
+  <div class="flex items-center justify-between mb-6">
+    <div><h1 class="font-display text-3xl font-extrabold">Subscribers</h1><p class="text-navy-600 text-sm">All clients of Apex Tools AI.</p></div>
+    <select id="subRange" class="px-3 py-2 border border-navy-200 rounded-lg text-sm">
+      <option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="180">Last 6 months</option><option value="365">Last year</option><option value="9999">All time</option>
+    </select>
+  </div>
+  <div id="subStats" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+  <div class="bg-white rounded-2xl border border-navy-100 p-5 mb-6"><h3 class="font-display font-bold mb-3">Subscriber Growth</h3><div class="h-64"><canvas id="subChart"></canvas></div></div>
+  <div class="bg-white rounded-2xl border border-navy-100"><div id="subTable"></div></div>
+</section>
+
+<section id="section-blog" class="section hidden">
+  <div class="flex items-center justify-between mb-6">
+    <div><h1 class="font-display text-3xl font-extrabold">Blog CMS</h1><p class="text-navy-600 text-sm">Posts on apextoolsai.com/blog.</p></div>
+    <button id="newPost" class="bg-accent-500 hover:bg-accent-600 text-white font-semibold px-5 py-2.5 rounded-full text-sm flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> New Post</button>
+  </div>
+  <div id="blogList" class="bg-white rounded-2xl border border-navy-100"></div>
+  <div id="blogEditor" class="hidden bg-white rounded-2xl border border-navy-100 p-6 mt-6"></div>
+</section>
+
+<section id="section-team" class="section hidden">
+  <div class="flex items-center justify-between mb-6">
+    <div><h1 class="font-display text-3xl font-extrabold">Team Management</h1><p class="text-navy-600 text-sm">Manage members and permissions.</p></div>
+    <button id="inviteBtn" class="bg-accent-500 hover:bg-accent-600 text-white font-semibold px-5 py-2.5 rounded-full text-sm flex items-center gap-2"><i data-lucide="user-plus" class="w-4 h-4"></i> Invite Member</button>
+  </div>
+  <div class="bg-white rounded-2xl border border-navy-100 p-5 mb-4"><h3 class="font-display font-bold mb-3">Members</h3><div id="teamMembers"></div></div>
+  <div class="bg-white rounded-2xl border border-navy-100 p-5"><h3 class="font-display font-bold mb-3">Pending Invitations</h3><div id="teamInvites"></div></div>
+</section>
+
+<section id="section-messages" class="section hidden">
+  <h1 class="font-display text-3xl font-extrabold mb-1">Contact Messages</h1>
+  <p class="text-navy-600 text-sm mb-6">Inquiries from your website's contact form.</p>
+  <div id="msgList" class="space-y-3"></div>
+</section>
+
+<section id="section-email" class="section hidden">
+  <h1 class="font-display text-3xl font-extrabold mb-1">Email Inbox</h1>
+  <p class="text-navy-600 text-sm mb-6">Gmail integration for hello@apextoolsai.com.</p>
+  <div id="emailArea" class="bg-white rounded-2xl border border-navy-100 p-6"></div>
+</section>
+
+<section id="section-bugs" class="section hidden">
+  <div class="flex items-center justify-between mb-6">
+    <div><h1 class="font-display text-3xl font-extrabold">Bug Reports</h1><p class="text-navy-600 text-sm">Issues reported by clients.</p></div>
+    <select id="bugFilter" class="px-3 py-2 border border-navy-200 rounded-lg text-sm">
+      <option value="all">All</option><option value="open" selected>Open</option><option value="resolved">Resolved</option>
+    </select>
+  </div>
+  <div id="bugStats" class="grid grid-cols-3 gap-4 mb-6"></div>
+  <div id="bugList" class="space-y-3"></div>
+</section>
+
+<section id="section-usage" class="section hidden">
+  <div class="flex items-center justify-between mb-6">
+    <div><h1 class="font-display text-3xl font-extrabold">Usage Analytics</h1><p class="text-navy-600 text-sm">Per-client feature usage tracking.</p></div>
+    <a href="/api/admin/usage?export=csv" target="_blank" class="bg-navy-900 hover:bg-navy-800 text-white font-semibold px-5 py-2.5 rounded-full text-sm flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i> Export CSV</a>
+  </div>
+  <div id="usageStats" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+  <div class="bg-white rounded-2xl border border-navy-100 p-4 mb-4"><input id="usageQ" placeholder="Search by name or email..." class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm"></div>
+  <div id="usageTable" class="bg-white rounded-2xl border border-navy-100 overflow-x-auto"></div>
+</section>
+
+</div>
+</main>
+</div>
+
+<div id="toastHost" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
+
+<script>
+const escapeHtml = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+const fmtDate = ts => new Date(Number(ts)).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
+const fmtDateOnly = ts => new Date(Number(ts)).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+const toast = (msg, type='success') => {
+  const colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-navy-900' };
+  const el = document.createElement('div');
+  el.className = `toast ${colors[type]} text-white px-5 py-3 rounded-lg shadow-xl text-sm font-medium`;
+  el.textContent = msg;
+  document.getElementById('toastHost').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+};
+const api = async (url, opts={}) => {
+  const r = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) }, ...opts });
+  if (r.status === 401) { window.location.href = '/login.html'; return; }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Request failed');
+  return data;
+};
+
+let user = null, subChart = null;
+
+async function init() {
+  try {
+    const { user: u } = await api('/api/auth/me');
+    user = u;
+    if (!u.is_admin) { window.location.href = '/dashboard/'; return; }
+  } catch { window.location.href = '/login.html'; return; }
+
+  if (localStorage.getItem('admin_theme') === 'dark') document.body.classList.add('dark');
+  document.getElementById('themeToggle').onclick = () => {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('admin_theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  };
+  document.getElementById('signoutBtn').onclick = () => fetch('/api/auth/logout').then(() => location.href = '/');
+  document.getElementById('signoutMobile').onclick = () => fetch('/api/auth/logout').then(() => location.href = '/');
+
+  lucide.createIcons();
+  routeSection();
+  window.addEventListener('hashchange', routeSection);
+}
+
+function routeSection() {
+  const hash = (location.hash || '#overview').replace('#','').split('/')[0];
+  document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+  const target = document.getElementById('section-' + hash);
+  if (target) target.classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('nav-active', n.dataset.section === hash));
+  ({ overview: loadOverview, subscribers: loadSubscribers, blog: loadBlog, team: loadTeam, messages: loadMessages, email: loadEmail, bugs: loadBugs, usage: loadUsage })[hash]?.();
+}
+
+// ----- OVERVIEW -----
+async function loadOverview() {
+  const data = await api('/api/admin/dashboard');
+  if (!data) return;
+  const m = data.metrics;
+  const stats = [
+    { label: 'Total Clients', value: m.total_users, color: 'text-navy-900', icon: 'users' },
+    { label: 'New This Month', value: m.new_this_month, color: 'text-green-600', icon: 'trending-up' },
+    { label: 'Total Calls', value: m.total_calls, color: 'text-accent-600', icon: 'phone' },
+    { label: 'Calls This Month', value: m.calls_this_month, color: 'text-navy-900', icon: 'calendar' },
+    { label: 'Appointments / 30d', value: m.appointments_this_month, color: 'text-green-600', icon: 'calendar-check' },
+    { label: 'Published Posts', value: m.published_posts, color: 'text-navy-900', icon: 'file-text' },
+  ];
+  document.getElementById('ovStats').innerHTML = stats.slice(0,4).map(s => `
+    <div class="bg-white rounded-2xl border border-navy-100 p-5">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs font-semibold text-navy-500 uppercase">${escapeHtml(s.label)}</span>
+        <i data-lucide="${s.icon}" class="w-4 h-4 ${s.color}"></i>
+      </div>
+      <div class="font-display text-3xl font-extrabold ${s.color}">${s.value}</div>
+    </div>`).join('');
+
+  document.getElementById('ovPlans').innerHTML = (data.plans || []).map(p => `
+    <div class="flex items-center justify-between py-2 border-b border-navy-100 last:border-0">
+      <span class="font-medium capitalize">${escapeHtml(p.plan || 'unset')}</span>
+      <span class="font-display font-bold text-accent-600">${p.c}</span>
+    </div>`).join('') || '<p class="text-sm text-navy-500">No clients yet.</p>';
+
+  document.getElementById('ovRecent').innerHTML = (data.recent_signups || []).length === 0
+    ? '<p class="text-sm text-navy-500 py-4">No signups yet.</p>'
+    : `<table class="w-full text-sm"><thead class="text-xs uppercase text-navy-500"><tr><th class="text-left pb-2">Email</th><th class="text-left pb-2">Business</th><th class="text-left pb-2">Plan</th><th class="text-left pb-2">Joined</th></tr></thead><tbody>${(data.recent_signups||[]).map(r => `<tr class="border-t border-navy-100"><td class="py-2">${escapeHtml(r.email)}</td><td class="py-2">${escapeHtml(r.business_name||'–')}</td><td class="py-2 capitalize">${escapeHtml(r.plan||'–')} ${r.is_founding_client?'<span class="ml-1 text-xs bg-accent-100 text-accent-700 px-1.5 py-0.5 rounded">Founding</span>':''}</td><td class="py-2">${fmtDateOnly(r.created_at)}</td></tr>`).join('')}</tbody></table>`;
+  lucide.createIcons();
+}
+
+// ----- SUBSCRIBERS -----
+async function loadSubscribers() {
+  const range = document.getElementById('subRange').value;
+  const data = await api(`/api/admin/subscribers?range=${range}`);
+  if (!data) return;
+  document.getElementById('subStats').innerHTML = [
+    { label: 'Total', value: data.total },
+    ...(data.by_plan || []).map(p => ({ label: (p.plan || 'unset') + ' Plan', value: p.c })),
+  ].slice(0,4).map(s => `
+    <div class="bg-white rounded-2xl border border-navy-100 p-5">
+      <div class="text-xs font-semibold text-navy-500 uppercase mb-1">${escapeHtml(s.label)}</div>
+      <div class="font-display text-3xl font-extrabold gradient-text">${s.value}</div>
+    </div>`).join('');
+
+  if (subChart) subChart.destroy();
+  const labels = (data.growth || []).map(g => fmtDateOnly(g.day));
+  const counts = (data.growth || []).map(g => g.c);
+  subChart = new Chart(document.getElementById('subChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'New signups', data: counts, borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.1)', tension: 0.3, fill: true }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+  });
+
+  const subs = data.subscribers || [];
+  document.getElementById('subTable').innerHTML = subs.length === 0
+    ? '<div class="py-12 text-center text-navy-500 text-sm">No subscribers yet.</div>'
+    : `<table class="w-full text-sm"><thead class="bg-navy-50 text-xs uppercase text-navy-600"><tr><th class="px-4 py-3 text-left">Email</th><th class="px-4 py-3 text-left">Business</th><th class="px-4 py-3 text-left">Plan</th><th class="px-4 py-3 text-left">Status</th><th class="px-4 py-3 text-left">Joined</th><th class="px-4 py-3 text-left">Last Login</th></tr></thead><tbody>${subs.map(s => `<tr class="border-t border-navy-100"><td class="px-4 py-3">${escapeHtml(s.email)}</td><td class="px-4 py-3">${escapeHtml(s.business_name||'–')}</td><td class="px-4 py-3 capitalize">${escapeHtml(s.plan||'–')}${s.is_founding_client?' <span class="text-xs bg-accent-100 text-accent-700 px-1.5 py-0.5 rounded ml-1">F</span>':''}</td><td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${s.status==='active'?'bg-green-100 text-green-700':'bg-navy-100 text-navy-700'}">${escapeHtml(s.status)}</span></td><td class="px-4 py-3">${fmtDateOnly(s.created_at)}</td><td class="px-4 py-3">${s.last_login?fmtDateOnly(s.last_login):'never'}</td></tr>`).join('')}</tbody></table>`;
+}
+document.getElementById('subRange').addEventListener('change', loadSubscribers);
+
+// ----- BLOG -----
+async function loadBlog() {
+  const data = await api('/api/admin/blog');
+  if (!data) return;
+  const posts = data.posts || [];
+  document.getElementById('blogList').innerHTML = posts.length === 0
+    ? '<div class="py-12 text-center text-navy-500 text-sm">No blog posts yet. Click "New Post" to write your first.</div>'
+    : `<table class="w-full text-sm"><thead class="bg-navy-50 text-xs uppercase text-navy-600"><tr><th class="px-4 py-3 text-left">Title</th><th class="px-4 py-3 text-left">Tag</th><th class="px-4 py-3 text-left">Status</th><th class="px-4 py-3 text-left">Updated</th><th class="px-4 py-3"></th></tr></thead><tbody>${posts.map(p => `<tr class="border-t border-navy-100"><td class="px-4 py-3 font-semibold">${escapeHtml(p.title)}</td><td class="px-4 py-3">${escapeHtml(p.tag)}</td><td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${p.status==='published'?'bg-green-100 text-green-700':'bg-navy-100 text-navy-700'}">${escapeHtml(p.status)}</span></td><td class="px-4 py-3 text-navy-500">${fmtDateOnly(p.updated_at)}</td><td class="px-4 py-3 text-right"><button class="text-accent-600 hover:underline text-xs font-semibold mr-3" onclick="editPost('${p.id}')">Edit</button><button class="text-red-600 hover:underline text-xs font-semibold" onclick="deletePost('${p.id}','${escapeHtml(p.title)}')">Delete</button></td></tr>`).join('')}</tbody></table>`;
+}
+let quill = null, editingId = null;
+function showEditor(post = null) {
+  editingId = post?.id || null;
+  const tags = ['AI Receptionists','Dental Marketing','Med Spa Growth','Case Study','Tutorial','News','Other'];
+  document.getElementById('blogEditor').classList.remove('hidden');
+  document.getElementById('blogEditor').innerHTML = `
+    <h3 class="font-display font-bold text-xl mb-4">${post ? 'Edit' : 'New'} Post</h3>
+    <div class="space-y-3">
+      <input id="postTitle" placeholder="Title" value="${escapeHtml(post?.title||'')}" class="w-full px-3 py-2 border border-navy-200 rounded-lg">
+      <input id="postSlug" placeholder="url-slug" value="${escapeHtml(post?.slug||'')}" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm font-mono">
+      <input id="postCover" placeholder="Cover image URL (optional)" value="${escapeHtml(post?.cover_image_url||'')}" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+      <textarea id="postExcerpt" placeholder="Excerpt (max 300 chars)" maxlength="300" rows="2" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">${escapeHtml(post?.excerpt||'')}</textarea>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="postAuthor" placeholder="Author name" value="${escapeHtml(post?.author_name||'Albert Brown')}" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+        <select id="postTag" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">${tags.map(t => `<option ${post?.tag===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div id="quillBox" class="bg-white"></div>
+      <div class="flex justify-between items-center">
+        <select id="postStatus" class="px-3 py-2 border border-navy-200 rounded-lg text-sm">
+          <option value="draft" ${post?.status==='draft'?'selected':''}>Draft</option>
+          <option value="published" ${post?.status==='published'?'selected':''}>Published</option>
+        </select>
+        <div class="flex gap-2">
+          <button onclick="document.getElementById('blogEditor').classList.add('hidden')" class="px-4 py-2 bg-navy-50 hover:bg-navy-100 rounded-lg text-sm">Cancel</button>
+          <button onclick="savePost()" class="bg-accent-500 hover:bg-accent-600 text-white font-semibold px-5 py-2 rounded-lg text-sm">Save</button>
+        </div>
+      </div>
+    </div>`;
+  quill = new Quill('#quillBox', { theme: 'snow', placeholder: 'Write your post...' });
+  if (post?.content) quill.root.innerHTML = post.content;
+  document.getElementById('postTitle').addEventListener('input', e => {
+    if (!editingId) document.getElementById('postSlug').value = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').substring(0,80);
+  });
+}
+window.editPost = async (id) => {
+  const data = await api('/api/admin/blog');
+  const post = data?.posts?.find(p => p.id === id);
+  if (post) {
+    const full = { ...post, content: post.content || '' };
+    showEditor(full);
+  }
+};
+window.deletePost = async (id, title) => {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  await api(`/api/admin/blog?id=${id}`, { method: 'DELETE' });
+  toast('Post deleted', 'success');
+  loadBlog();
+};
+window.savePost = async () => {
+  const body = {
+    title: document.getElementById('postTitle').value,
+    slug: document.getElementById('postSlug').value,
+    excerpt: document.getElementById('postExcerpt').value,
+    cover_image_url: document.getElementById('postCover').value,
+    author_name: document.getElementById('postAuthor').value,
+    tag: document.getElementById('postTag').value,
+    status: document.getElementById('postStatus').value,
+    content: quill.root.innerHTML,
+  };
+  try {
+    if (editingId) await api(`/api/admin/blog?id=${editingId}`, { method: 'PATCH', body: JSON.stringify(body) });
+    else await api('/api/admin/blog', { method: 'POST', body: JSON.stringify(body) });
+    toast('Post saved', 'success');
+    document.getElementById('blogEditor').classList.add('hidden');
+    loadBlog();
+  } catch (e) { toast(e.message, 'error'); }
+};
+document.getElementById('newPost').onclick = () => showEditor();
+
+// ----- TEAM -----
+async function loadTeam() {
+  const data = await api('/api/admin/team');
+  if (!data) return;
+  const m = data.members || [], inv = data.invitations || [];
+  document.getElementById('teamMembers').innerHTML = m.length === 0
+    ? '<p class="text-sm text-navy-500 py-3">No team members yet — invite your first.</p>'
+    : `<table class="w-full text-sm"><thead class="text-xs uppercase text-navy-500"><tr><th class="text-left pb-2">Name</th><th class="text-left pb-2">Email</th><th class="text-left pb-2">Role</th><th class="text-left pb-2">Status</th></tr></thead><tbody>${m.map(x => `<tr class="border-t border-navy-100"><td class="py-2">${escapeHtml(x.full_name||'–')}</td><td class="py-2">${escapeHtml(x.email)}</td><td class="py-2 capitalize">${escapeHtml(x.role)}</td><td class="py-2 capitalize">${escapeHtml(x.status)}</td></tr>`).join('')}</tbody></table>`;
+  document.getElementById('teamInvites').innerHTML = inv.length === 0 ? '<p class="text-sm text-navy-500 py-3">No pending invitations.</p>' : inv.map(i => `<div class="flex justify-between py-2 border-b border-navy-100 last:border-0"><span class="text-sm">${escapeHtml(i.email)} · <span class="text-navy-500">${escapeHtml(i.role)}</span></span><span class="text-xs text-navy-500">expires ${fmtDateOnly(i.expires_at)}</span></div>`).join('');
+}
+document.getElementById('inviteBtn').onclick = async () => {
+  const email = prompt('Email to invite:');
+  if (!email) return;
+  const role = prompt('Role (admin / editor / viewer):', 'viewer');
+  try {
+    const r = await api('/api/admin/team', { method: 'POST', body: JSON.stringify({ email, role: role || 'viewer' }) });
+    toast('Invitation sent', 'success');
+    if (r?.invite_link) navigator.clipboard?.writeText(r.invite_link);
+    loadTeam();
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+// ----- MESSAGES -----
+async function loadMessages() {
+  const data = await api('/api/admin/messages');
+  if (!data) return;
+  const msgs = data.messages || [];
+  document.getElementById('msgList').innerHTML = msgs.length === 0
+    ? '<div class="bg-white border border-navy-100 rounded-2xl py-12 text-center text-navy-500 text-sm">No messages yet.</div>'
+    : msgs.map(m => `
+      <div class="bg-white border border-navy-100 rounded-2xl p-5 ${!m.is_read ? 'border-l-4 border-l-accent-500' : ''}">
+        <div class="flex items-start justify-between mb-2">
+          <div>
+            <div class="font-semibold">${escapeHtml(m.sender_name || m.sender_email)}</div>
+            <div class="text-xs text-navy-500">${escapeHtml(m.sender_email)} · ${fmtDate(m.created_at)}</div>
+          </div>
+          <div class="flex gap-2">
+            ${!m.is_read ? '<span class="bg-accent-100 text-accent-700 text-xs font-semibold px-2 py-0.5 rounded-full">New</span>' : ''}
+            ${m.is_responded ? '<span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">Replied</span>' : ''}
+          </div>
+        </div>
+        ${m.subject ? `<div class="font-semibold text-navy-900 mb-1">${escapeHtml(m.subject)}</div>` : ''}
+        <div class="text-sm text-navy-700 whitespace-pre-wrap mb-3">${escapeHtml(m.body)}</div>
+        ${!m.is_responded ? `<details><summary class="text-accent-600 font-semibold text-sm cursor-pointer">Reply</summary><div class="mt-3"><textarea id="reply_${m.id}" rows="3" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm" placeholder="Type your reply..."></textarea><div class="flex gap-2 mt-2"><button onclick="sendReply('${m.id}')" class="bg-accent-500 hover:bg-accent-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold">Send</button>${!m.is_read ? `<button onclick="markRead('${m.id}')" class="px-4 py-1.5 border border-navy-200 rounded-lg text-sm">Mark Read</button>` : ''}</div></div></details>` : ''}
+      </div>`).join('');
+}
+window.sendReply = async (id) => {
+  const reply = document.getElementById('reply_' + id).value.trim();
+  if (!reply) return;
+  try { await api(`/api/admin/messages?id=${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'reply', reply }) }); toast('Reply sent'); loadMessages(); } catch (e) { toast(e.message, 'error'); }
+};
+window.markRead = async (id) => {
+  try { await api(`/api/admin/messages?id=${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'mark_read' }) }); loadMessages(); } catch (e) { toast(e.message, 'error'); }
+};
+
+// ----- EMAIL -----
+async function loadEmail() {
+  const data = await api('/api/admin/email');
+  if (!data) return;
+  if (!data.connected) {
+    document.getElementById('emailArea').innerHTML = `
+      <div class="text-center py-6">
+        <i data-lucide="mail" class="w-12 h-12 text-accent-500 mx-auto mb-3"></i>
+        <h3 class="font-display font-bold text-xl mb-2">Connect Gmail</h3>
+        <p class="text-navy-600 text-sm max-w-lg mx-auto mb-4">Set up Gmail OAuth to view and reply to hello@apextoolsai.com inside this admin panel.</p>
+        <ol class="text-sm text-left max-w-md mx-auto space-y-1 mb-4 list-decimal list-inside text-navy-700">${(data.instructions||[]).map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ol>
+        <button class="bg-navy-900 text-white px-5 py-2.5 rounded-full font-semibold text-sm">Configuration coming soon</button>
+      </div>`;
+    lucide.createIcons();
+    return;
+  }
+  document.getElementById('emailArea').innerHTML = '<p class="text-sm text-navy-500">Email sync stub — Gmail messages will appear here.</p>';
+}
+
+// ----- BUGS -----
+async function loadBugs() {
+  const status = document.getElementById('bugFilter').value;
+  const data = await api(`/api/admin/bugs?status=${status}`);
+  if (!data) return;
+  const total = (data.summary||[]).reduce((a,b) => a + b.c, 0);
+  const open = (data.summary||[]).find(s => s.status === 'open')?.c || 0;
+  const resolved = (data.summary||[]).find(s => s.status === 'resolved')?.c || 0;
+  document.getElementById('bugStats').innerHTML = [
+    { label: 'Total', value: total }, { label: 'Open', value: open, color: 'text-red-600' }, { label: 'Resolved', value: resolved, color: 'text-green-600' }
+  ].map(s => `<div class="bg-white rounded-2xl border border-navy-100 p-5"><div class="text-xs font-semibold text-navy-500 uppercase mb-1">${escapeHtml(s.label)}</div><div class="font-display text-3xl font-extrabold ${s.color || 'text-navy-900'}">${s.value}</div></div>`).join('');
+  const reports = data.reports || [];
+  const icons = { bug: 'bug', feature: 'sparkles', ui: 'palette', performance: 'zap', other: 'message-square' };
+  document.getElementById('bugList').innerHTML = reports.length === 0
+    ? '<div class="bg-white rounded-2xl border border-navy-100 py-12 text-center text-navy-500 text-sm">No reports.</div>'
+    : reports.map(r => `<div class="bg-white border border-navy-100 rounded-2xl p-5 ${r.is_unread ? 'border-l-4 border-l-accent-500' : ''}">
+      <div class="flex items-start justify-between mb-2">
+        <div class="flex items-center gap-3">
+          <i data-lucide="${icons[r.category]||'message-square'}" class="w-5 h-5 text-accent-500"></i>
+          <div><div class="font-semibold capitalize">${escapeHtml(r.category)}</div><div class="text-xs text-navy-500">${escapeHtml(r.reporter_email||'anon')} · ${fmtDate(r.created_at)}</div></div>
+        </div>
+        <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${r.status==='resolved'?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}">${escapeHtml(r.status)}</span>
+      </div>
+      <div class="text-sm text-navy-700 whitespace-pre-wrap mb-2">${escapeHtml(r.description)}</div>
+      ${r.page_url ? `<div class="text-xs text-navy-500 mb-2">Page: <code class="bg-navy-50 px-1.5 py-0.5 rounded">${escapeHtml(r.page_url)}</code></div>` : ''}
+      <div class="flex gap-2">
+        <button onclick="toggleBug('${r.id}')" class="text-xs font-semibold px-3 py-1 border border-navy-200 rounded-lg hover:bg-navy-50">${r.status==='open'?'Mark Resolved':'Reopen'}</button>
+        <button onclick="deleteBug('${r.id}')" class="text-xs font-semibold px-3 py-1 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">Delete</button>
+      </div></div>`).join('');
+  lucide.createIcons();
+}
+document.getElementById('bugFilter').addEventListener('change', loadBugs);
+window.toggleBug = async (id) => { try { await api(`/api/admin/bugs?id=${id}`, { method: 'PATCH' }); toast('Updated'); loadBugs(); } catch (e) { toast(e.message, 'error'); } };
+window.deleteBug = async (id) => { if (!confirm('Delete?')) return; try { await api(`/api/admin/bugs?id=${id}`, { method: 'DELETE' }); toast('Deleted'); loadBugs(); } catch (e) { toast(e.message, 'error'); } };
+
+// ----- USAGE -----
+async function loadUsage() {
+  const data = await api('/api/admin/usage');
+  if (!data) return;
+  const s = data.summary;
+  document.getElementById('usageStats').innerHTML = [
+    { label: 'Total Users', value: s.total },
+    { label: 'Active (7 days)', value: s.active_7, color: 'text-green-600' },
+    { label: 'Active (30 days)', value: s.active_30 },
+    { label: 'Inactive', value: s.total - s.active_30, color: 'text-red-600' },
+  ].map(x => `<div class="bg-white rounded-2xl border border-navy-100 p-5"><div class="text-xs font-semibold text-navy-500 uppercase mb-1">${escapeHtml(x.label)}</div><div class="font-display text-3xl font-extrabold ${x.color || 'text-navy-900'}">${x.value}</div></div>`).join('');
+
+  const renderTable = (q='') => {
+    const list = (data.users || []).filter(u => !q || (u.email + u.business_name).toLowerCase().includes(q.toLowerCase()));
+    document.getElementById('usageTable').innerHTML = list.length === 0
+      ? '<div class="py-12 text-center text-navy-500 text-sm">No matches.</div>'
+      : `<table class="w-full text-sm whitespace-nowrap"><thead class="bg-navy-50 text-xs uppercase text-navy-600"><tr>
+        <th class="px-4 py-3 text-left">Email</th><th class="px-4 py-3 text-left">Business</th><th class="px-4 py-3 text-left">Plan</th>
+        <th class="px-4 py-3 text-left">Logins</th><th class="px-4 py-3 text-left">Calls</th><th class="px-4 py-3 text-left">Appts</th><th class="px-4 py-3 text-left">Edits</th>
+        <th class="px-4 py-3 text-left">Last Login</th><th class="px-4 py-3 text-left">Last Activity</th><th class="px-4 py-3 text-left">Joined</th>
+        </tr></thead><tbody>${list.map(u => {
+          const lowUsage = (u.calls_count || 0) < 5 && (u.login_count || 0) < 3 && (Date.now() - u.created_at > 14*86400000);
+          return `<tr class="border-t border-navy-100 ${lowUsage ? 'bg-amber-50/40' : ''}">
+            <td class="px-4 py-3">${escapeHtml(u.email)}</td>
+            <td class="px-4 py-3">${escapeHtml(u.business_name||'–')}</td>
+            <td class="px-4 py-3 capitalize">${escapeHtml(u.plan||'–')}</td>
+            <td class="px-4 py-3">${u.login_count||0}</td>
+            <td class="px-4 py-3">${u.calls_count||0}</td>
+            <td class="px-4 py-3">${u.appts_count||0}</td>
+            <td class="px-4 py-3">${u.config_edits||0}</td>
+            <td class="px-4 py-3 text-xs">${u.last_login?fmtDateOnly(u.last_login):'never'}</td>
+            <td class="px-4 py-3 text-xs">${u.last_activity?fmtDateOnly(u.last_activity):'never'}</td>
+            <td class="px-4 py-3 text-xs">${fmtDateOnly(u.created_at)}</td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
+  };
+  renderTable();
+  document.getElementById('usageQ').addEventListener('input', e => renderTable(e.target.value));
+}
+
+init();
+</script>
+</body></html>
