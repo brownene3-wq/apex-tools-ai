@@ -69,13 +69,9 @@ export const sendEmail = async (env, { to, subject, html, from = 'Apex Tools AI 
   return await r.json();
 };
 
-// Log usage events
-export const logUsage = async (env, clientId, eventType, eventData = null) => {
-  try {
-    await env.DB.prepare(
-      'INSERT INTO usage_events (client_id, event_type, event_data_json, created_at) VALUES (?, ?, ?, ?)'
-    ).bind(clientId, eventType, eventData ? JSON.stringify(eventData) : null, Date.now()).run();
-  } catch (e) {
-    console.error('[logUsage]', e);
-  }
-};
+// Password hashing using PBKDF2 (Web Crypto, available in Workers)
+const PBKDF2_ITERATIONS = 100000;
+const bytesToHex = (bytes) => Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2, '0')).join('');
+const hexToBytes = (hex) => { const out = new Uint8Array(hex.length / 2); for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i*2, 2), 16); return out; };
+
+export c

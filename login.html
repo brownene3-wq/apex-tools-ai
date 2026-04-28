@@ -9,10 +9,11 @@
 <script>
 tailwind.config = { theme: { extend: { colors: {
   navy: { 50:'#f0f4f9', 100:'#dbe5f1', 600:'#1e3a5f', 700:'#172a4a', 800:'#0f1e36', 900:'#0a1628', 950:'#050b18' },
-  accent: { 400:'#fb923c', 500:'#f97316', 600:'#ea580c', 700:'#c2410c' },
+  accent: { 400:'#fb923c', 500:'#f97316', 600:'#ea580c' },
 }, fontFamily: { sans: ['Inter','sans-serif'], display: ['Plus Jakarta Sans','sans-serif'] } } } };
 </script>
-<style>body{font-family:Inter,sans-serif} .font-display{font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.02em}</style>
+<style>body{font-family:Inter,sans-serif} .font-display{font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.02em}
+.tab-active{background:#0a1628;color:white}</style>
 </head>
 <body class="bg-navy-50/30 min-h-screen flex flex-col">
 
@@ -29,72 +30,55 @@ tailwind.config = { theme: { extend: { colors: {
 <main class="flex-1 flex items-center justify-center px-4 py-12">
   <div class="w-full max-w-md">
     <div class="bg-white rounded-2xl border border-navy-100 shadow-xl p-8 lg:p-10">
-      <div class="text-center mb-8">
-        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-2">Welcome back</h1>
-        <p class="text-navy-600 text-sm">Sign in to your Apex Tools AI dashboard</p>
+
+      <!-- Tab toggle -->
+      <div class="flex gap-1 bg-navy-50 rounded-full p-1 mb-8 text-sm font-semibold">
+        <button data-tab="signin" class="tab tab-active flex-1 py-2 rounded-full transition-all">Sign In</button>
+        <button data-tab="signup" class="tab flex-1 py-2 rounded-full transition-all">Create Account</button>
       </div>
 
-      <form id="loginForm" class="space-y-4">
-        <div>
-          <label class="block text-sm font-semibold text-navy-700 mb-1.5">Email address</label>
-          <input id="email" type="email" required autocomplete="email" placeholder="you@yourpractice.com"
-            class="w-full px-4 py-3 border border-navy-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent">
+      <!-- SIGN IN -->
+      <div id="pane-signin" class="pane">
+        <div class="text-center mb-6">
+          <h1 class="font-display text-2xl font-extrabold text-navy-900 mb-1">Welcome back</h1>
+          <p class="text-navy-600 text-sm">Sign in to your dashboard</p>
         </div>
-        <button type="submit" id="submitBtn" class="w-full inline-flex items-center justify-center gap-2 bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/30">
-          <span>Send sign-in link</span>
-          <i data-lucide="arrow-right" class="w-4 h-4"></i>
-        </button>
-      </form>
-
-      <div id="successMsg" class="hidden mt-6 bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
-        <div class="flex items-start gap-2.5">
-          <i data-lucide="mail-check" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>
+        <form id="signinForm" class="space-y-4">
           <div>
-            <strong>Check your email</strong><br>
-            We sent a sign-in link to <span id="sentEmail" class="font-semibold"></span>. The link expires in 15 minutes. Click it to sign in.
+            <label class="block text-sm font-semibold text-navy-700 mb-1.5">Email</label>
+            <input id="siEmail" type="email" required autocomplete="email" placeholder="you@yourpractice.com"
+              class="w-full px-4 py-3 border border-navy-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500">
           </div>
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-sm font-semibold text-navy-700">Password</label>
+              <button type="button" id="forgotBtn" class="text-xs text-accent-600 hover:underline font-medium">Forgot password?</button>
+            </div>
+            <input id="siPw" type="password" required autocomplete="current-password"
+              class="w-full px-4 py-3 border border-navy-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500">
+          </div>
+          <button type="submit" id="siSubmit" class="w-full bg-navy-900 hover:bg-navy-800 text-white font-semibold py-3 rounded-xl transition-all">Sign In</button>
+        </form>
+      </div>
+
+      <!-- SIGN UP -->
+      <div id="pane-signup" class="pane hidden">
+        <div class="text-center mb-6">
+          <h1 class="font-display text-2xl font-extrabold text-navy-900 mb-1">Create your account</h1>
+          <p class="text-navy-600 text-sm">Start managing your AI receptionist</p>
         </div>
-      </div>
-
-      <div id="errorMsg" class="hidden mt-6 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800"></div>
-
-      <div class="mt-8 pt-6 border-t border-navy-100 text-xs text-center text-navy-500">
-        New here? Just enter your email — we'll create your account automatically. Once you've talked to us about setup, you'll be able to access your dashboard.
-      </div>
-    </div>
-
-    <div class="text-center mt-6 text-sm text-navy-500">
-      Need help? <a href="mailto:hello@apextoolsai.com" class="text-accent-600 font-semibold hover:underline">hello@apextoolsai.com</a>
-    </div>
-  </div>
-</main>
-
-<script>
-lucide.createIcons();
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('email').value.trim();
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true; btn.querySelector('span').textContent = 'Sending...';
-  document.getElementById('errorMsg').classList.add('hidden');
-
-  try {
-    const r = await fetch('/api/auth/request-link', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Something went wrong');
-    document.getElementById('sentEmail').textContent = email;
-    document.getElementById('successMsg').classList.remove('hidden');
-    document.getElementById('loginForm').classList.add('hidden');
-  } catch (err) {
-    const errEl = document.getElementById('errorMsg');
-    errEl.textContent = err.message;
-    errEl.classList.remove('hidden');
-    btn.disabled = false; btn.querySelector('span').textContent = 'Send sign-in link';
-  }
-});
-</script>
-</body></html>
+        <form id="signupForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold text-navy-700 mb-1.5">Full Name</label>
+            <input id="suName" type="text" required autocomplete="name" class="w-full px-4 py-3 border border-navy-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-navy-700 mb-1.5">Business Name <span class="text-navy-400 font-normal">(optional)</span></label>
+            <input id="suBiz" type="text" autocomplete="organization" placeholder="Hollywood Smile Dental" class="w-full px-4 py-3 border border-navy-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-navy-700 mb-1.5">Email</label>
+            <input id="suEmail" type="email" required autocomplete="email" class="w-full px-4 py-3 border border-navy-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text
