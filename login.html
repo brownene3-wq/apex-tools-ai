@@ -108,6 +108,14 @@ tailwind.config = { theme: { extend: { colors: {
 
 <script>
 lucide.createIcons();
+// If already logged in, send to admin/dashboard immediately
+fetch('/api/auth/me', { credentials: 'include' })
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    if (!data || !data.user) return;
+    window.location.href = data.user.is_admin ? '/admin/' : '/dashboard/';
+  })
+  .catch(() => {});
 const $ = id => document.getElementById(id);
 const errEl = $('errMsg');
 const setError = m => { errEl.textContent = m; errEl.classList.remove('hidden'); };

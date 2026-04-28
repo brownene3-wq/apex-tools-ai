@@ -102,9 +102,9 @@
           <a href="/" class="px-2.5 py-1 rounded-full text-navy-600 hover:text-navy-900 transition-colors">EN</a>
           <span class="px-2.5 py-1 rounded-full bg-navy-900 text-white">ES</span>
         </div>
-        <a href="/login.html" class="hidden sm:inline-flex items-center gap-1.5 text-navy-700 hover:text-navy-900 font-medium text-sm">
+        <a id="loginNavLink" href="/login.html" class="hidden sm:inline-flex items-center gap-1.5 text-navy-700 hover:text-navy-900 font-medium text-sm">
           <i data-lucide="log-in" class="w-4 h-4"></i>
-          Iniciar Sesión
+          <span id="loginNavLabel">Iniciar Sesión</span>
         </a>
         <a href="#book" class="hidden sm:inline-flex items-center gap-1.5 bg-accent-500 hover:bg-accent-600 text-white font-semibold px-4 lg:px-5 py-2.5 rounded-full text-sm transition-all hover:shadow-lg hover:shadow-accent-500/30">
           Reservar Llamada
@@ -860,6 +860,24 @@
       }
     });
   });
+</script>
+<script>
+fetch('/api/auth/me', { credentials: 'include' })
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    if (!data || !data.user) return;
+    const link = document.getElementById('loginNavLink');
+    const label = document.getElementById('loginNavLabel');
+    if (!link) return;
+    if (data.user.is_admin) {
+      link.href = '/admin/';
+      if (label) label.textContent = 'Panel de Admin';
+    } else {
+      link.href = '/dashboard/';
+      if (label) label.textContent = 'Mi Panel';
+    }
+  })
+  .catch(() => {});
 </script>
 </body>
 </html>
