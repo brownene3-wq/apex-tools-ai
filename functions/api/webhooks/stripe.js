@@ -85,7 +85,7 @@ export async function onRequestPost({ request, env }) {
         html: `
           <div style="font-family: -apple-system, sans-serif; max-width: 540px; margin: 0 auto; padding: 32px 24px;">
             <h2 style="color: #0a1628;">Welcome to Apex Tools AI${name ? ', ' + name.split(' ')[0] : ''}!</h2>
-            <p style="color: #475569; line-height: 1.6;">Your payment of $${amountTotal} is confirmed${isFounding ? ' (Founding Client special — you\\'ll be locked at this monthly rate forever)' : ''}.</p>
+            <p style="color: #475569; line-height: 1.6;">Your payment of $${amountTotal} is confirmed${isFounding ? ' (Founding Client special — you\'ll be locked at this monthly rate forever)' : ''}.</p>
             <p style="color: #475569; line-height: 1.6;"><strong>Next step:</strong> create your dashboard password so you can configure your AI receptionist, see calls and appointments, and manage your account.</p>
             <a href="${origin}/login?signup=1&email=${encodeURIComponent(email)}" style="display:inline-block; background:#f97316; color:white; text-decoration:none; padding:14px 28px; border-radius:9999px; font-weight:600; margin:16px 0;">Create Your Account</a>
             <p style="color: #475569; line-height: 1.6;">After that, we'll schedule your 30-minute discovery session to gather your services, hours, FAQs, and calendar — your AI goes live within 5 business days.</p>
