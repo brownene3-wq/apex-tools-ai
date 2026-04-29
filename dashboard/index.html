@@ -54,6 +54,8 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
         <i data-lucide="credit-card" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Billing</span></a>
       <a href="#support" data-section="support" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
         <i data-lucide="life-buoy" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Support</span></a>
+      <a href="#settings" data-section="settings" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="settings" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Settings</span></a>
     </nav>
     <div class="p-3 border-t border-navy-100 space-y-1">
       <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-navy-600 hover:bg-navy-50">
@@ -202,6 +204,125 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
           </div>
         </div>
       </section>
+
+      <!-- SETTINGS -->
+      <section id="section-settings" class="section hidden">
+        <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Settings</h1>
+        <p class="text-navy-600 text-sm mb-6">Manage your account, password, notifications, and active sessions.</p>
+
+        <div class="space-y-6 max-w-3xl">
+
+          <!-- Account info -->
+          <div class="bg-white rounded-2xl border border-navy-100 p-6">
+            <h2 class="font-display font-bold text-lg mb-4">Account information</h2>
+            <form id="profileForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Full name</label>
+                <input id="pfName" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Email</label>
+                <input id="pfEmail" disabled class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm bg-navy-50">
+                <p class="text-xs text-navy-500 mt-1">Email cannot be changed. Contact support if you need this.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Business name</label>
+                <input id="pfBiz" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Phone</label>
+                <input id="pfPhone" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Business address</label>
+                <input id="pfAddr" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Practice type</label>
+                <select id="pfType" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+                  <option value="">Select…</option>
+                  <option value="dental">Dental</option>
+                  <option value="med_spa">Medical Spa</option>
+                  <option value="chiropractor">Chiropractor</option>
+                  <option value="dermatology">Dermatology</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Time zone</label>
+                <select id="pfTz" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+                  <option value="America/New_York">Eastern (New York)</option>
+                  <option value="America/Chicago">Central (Chicago)</option>
+                  <option value="America/Denver">Mountain (Denver)</option>
+                  <option value="America/Los_Angeles">Pacific (Los Angeles)</option>
+                  <option value="America/Phoenix">Arizona</option>
+                </select>
+              </div>
+              <div class="md:col-span-2 flex justify-end">
+                <button type="submit" class="bg-navy-900 hover:bg-navy-800 text-white font-semibold px-6 py-2 rounded-lg text-sm">Save changes</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Change password -->
+          <div class="bg-white rounded-2xl border border-navy-100 p-6">
+            <h2 class="font-display font-bold text-lg mb-4">Change password</h2>
+            <form id="pwForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="md:col-span-2">
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Current password</label>
+                <input id="pwCur" type="password" autocomplete="current-password" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">New password (min 8)</label>
+                <input id="pwNew" type="password" autocomplete="new-password" minlength="8" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-navy-700 mb-1">Confirm new password</label>
+                <input id="pwNew2" type="password" autocomplete="new-password" minlength="8" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm">
+              </div>
+              <div class="md:col-span-2 flex justify-end">
+                <button type="submit" class="bg-accent-500 hover:bg-accent-600 text-white font-semibold px-6 py-2 rounded-lg text-sm">Update password</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Notification preferences -->
+          <div class="bg-white rounded-2xl border border-navy-100 p-6">
+            <h2 class="font-display font-bold text-lg mb-4">Email notifications</h2>
+            <p class="text-sm text-navy-500 mb-4">Choose which emails you want to receive.</p>
+            <div id="notifyToggles" class="space-y-3"></div>
+          </div>
+
+          <!-- Active sessions -->
+          <div class="bg-white rounded-2xl border border-navy-100 p-6">
+            <h2 class="font-display font-bold text-lg mb-1">Active sessions</h2>
+            <p class="text-sm text-navy-500 mb-4">Devices currently signed into your account. Revoke any you don't recognize.</p>
+            <div id="sessionsList" class="space-y-2 text-sm"></div>
+          </div>
+
+          <!-- Danger zone -->
+          <div class="bg-red-50 rounded-2xl border border-red-200 p-6">
+            <h2 class="font-display font-bold text-lg text-red-900 mb-1">Danger zone</h2>
+            <p class="text-sm text-red-800 mb-4">Permanently delete your account and all associated data. This cannot be undone.</p>
+            <button id="deleteAcctBtn" class="bg-white hover:bg-red-100 text-red-700 border border-red-300 font-semibold px-5 py-2 rounded-lg text-sm">Delete my account</button>
+          </div>
+        </div>
+
+        <!-- Delete account modal -->
+        <div id="deleteModal" class="hidden fixed inset-0 z-50 bg-navy-900/60 flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h2 class="font-display font-bold text-xl text-navy-900 mb-2">Delete your account?</h2>
+            <p class="text-sm text-navy-600 mb-4">This will cancel your subscription, disconnect every integration, and scrub your personal data. You can not undo this.</p>
+            <label class="block text-sm font-semibold text-navy-700 mb-1">Confirm with your password</label>
+            <input id="delPw" type="password" class="w-full px-3 py-2 border border-navy-200 rounded-lg text-sm mb-4">
+            <div id="delErr" class="hidden text-sm text-red-600 mb-3"></div>
+            <div class="flex justify-end gap-3">
+              <button id="delCancel" class="text-navy-600 font-medium px-4 py-2">Cancel</button>
+              <button id="delConfirm" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2 rounded-lg">Delete forever</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 </div>
@@ -259,7 +380,7 @@ function routeSection() {
   if (target) target.classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('nav-active', n.dataset.section === hash));
   // Load data
-  ({ overview: loadOverview, calls: loadCalls, configure: loadConfigure, calendar: loadCalendar, reports: loadReports, billing: loadBilling, support: loadSupport, integrations: loadIntegrations })[hash]?.();
+  ({ overview: loadOverview, calls: loadCalls, configure: loadConfigure, calendar: loadCalendar, reports: loadReports, billing: loadBilling, support: loadSupport, integrations: loadIntegrations, settings: loadSettings })[hash]?.();
 }
 
 // ---- OVERVIEW ----
@@ -746,6 +867,146 @@ function openCalendlyModal() {
 document.addEventListener('click', (e) => {
   if (e.target.id === 'imClose' || e.target.closest('#imClose') || e.target.id === 'integrationModal') closeModal();
 });
+
+
+// ===== SETTINGS =====
+let _accountCache = null;
+
+async function loadSettings() {
+  await loadProfile();
+  await loadNotifyToggles();
+  await loadSessions();
+  document.getElementById('profileForm').onsubmit = saveProfile;
+  document.getElementById('pwForm').onsubmit = changePassword;
+  document.getElementById('deleteAcctBtn').onclick = () => {
+    document.getElementById('delPw').value = '';
+    document.getElementById('delErr').classList.add('hidden');
+    document.getElementById('deleteModal').classList.remove('hidden');
+  };
+  document.getElementById('delCancel').onclick = () => document.getElementById('deleteModal').classList.add('hidden');
+  document.getElementById('delConfirm').onclick = confirmDeleteAccount;
+  lucide.createIcons();
+}
+
+async function loadProfile() {
+  const r = await api('/api/account');
+  _accountCache = r.account;
+  const a = r.account;
+  document.getElementById('pfName').value = a.full_name || '';
+  document.getElementById('pfEmail').value = a.email || '';
+  document.getElementById('pfBiz').value = a.business_name || '';
+  document.getElementById('pfPhone').value = a.phone || '';
+  document.getElementById('pfAddr').value = a.business_address || '';
+  document.getElementById('pfType').value = a.practice_type || '';
+  document.getElementById('pfTz').value = a.timezone || 'America/New_York';
+}
+
+async function saveProfile(e) {
+  e.preventDefault();
+  const body = {
+    full_name: document.getElementById('pfName').value.trim(),
+    business_name: document.getElementById('pfBiz').value.trim(),
+    phone: document.getElementById('pfPhone').value.trim(),
+    business_address: document.getElementById('pfAddr').value.trim(),
+    practice_type: document.getElementById('pfType').value,
+    timezone: document.getElementById('pfTz').value,
+  };
+  const r = await fetch('/api/account', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (r.ok) toast('Account saved'); else toast('Save failed', true);
+}
+
+const NOTIFY_FIELDS = [
+  { key: 'notify_call_summary', label: 'Daily call summary', desc: 'A summary email of every call your AI received in the last 24 hours.' },
+  { key: 'notify_appointment', label: 'New appointment booked', desc: 'When the AI books an appointment for a patient.' },
+  { key: 'notify_urgent', label: 'Urgent escalations', desc: 'When the AI detects a patient in urgent need (severe pain, bleeding, swelling) and escalates the call to your line.' },
+  { key: 'notify_weekly_report', label: 'Weekly performance report', desc: 'Every Monday morning: total calls, appointments booked, missed calls, and trends.' },
+  { key: 'notify_billing', label: 'Billing & invoices', desc: 'Receipts, failed payment alerts, subscription updates.' },
+];
+
+async function loadNotifyToggles() {
+  const wrap = document.getElementById('notifyToggles');
+  wrap.innerHTML = '';
+  for (const f of NOTIFY_FIELDS) {
+    const on = _accountCache?.[f.key] === 1 || _accountCache?.[f.key] === true;
+    wrap.insertAdjacentHTML('beforeend', `
+      <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-navy-50 cursor-pointer">
+        <input type="checkbox" data-notify="${f.key}" ${on ? 'checked' : ''} class="mt-1 w-4 h-4 rounded border-navy-300">
+        <div class="flex-1">
+          <div class="font-semibold text-navy-900 text-sm">${escapeHtml(f.label)}</div>
+          <div class="text-xs text-navy-500">${escapeHtml(f.desc)}</div>
+        </div>
+      </label>
+    `);
+  }
+  wrap.querySelectorAll('[data-notify]').forEach(cb => cb.addEventListener('change', async (e) => {
+    const body = { [e.target.dataset.notify]: e.target.checked };
+    const r = await fetch('/api/account', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (r.ok) toast('Preference saved'); else { toast('Save failed', true); e.target.checked = !e.target.checked; }
+  }));
+}
+
+async function changePassword(e) {
+  e.preventDefault();
+  const cur = document.getElementById('pwCur').value;
+  const n1 = document.getElementById('pwNew').value;
+  const n2 = document.getElementById('pwNew2').value;
+  if (n1 !== n2) return toast('New passwords do not match', true);
+  if (n1.length < 8) return toast('New password must be at least 8 characters', true);
+  const r = await fetch('/api/account/change-password', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current_password: cur, new_password: n1 }) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return toast(data.error || 'Update failed', true);
+  document.getElementById('pwForm').reset();
+  toast('Password updated');
+}
+
+async function loadSessions() {
+  const wrap = document.getElementById('sessionsList');
+  wrap.innerHTML = '<div class="text-navy-400">Loading...</div>';
+  try {
+    const r = await api('/api/account/sessions');
+    if (!r.sessions.length) { wrap.innerHTML = '<div class="text-navy-500">No active sessions.</div>'; return; }
+    wrap.innerHTML = '';
+    for (const s of r.sessions) {
+      const ua = (s.user_agent || '').slice(0, 80);
+      const created = new Date(s.created_at).toLocaleString();
+      const ip = s.ip || 'unknown IP';
+      wrap.insertAdjacentHTML('beforeend', `
+        <div class="flex items-center justify-between p-3 rounded-lg border border-navy-100">
+          <div>
+            <div class="font-semibold text-sm text-navy-900">${escapeHtml(ua) || 'Unknown device'}${s.is_current ? ' <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">This device</span>' : ''}</div>
+            <div class="text-xs text-navy-500">${escapeHtml(ip)} · Signed in ${created}</div>
+          </div>
+          ${s.is_current ? '' : `<button data-revoke="${s.id}" class="text-sm text-red-600 hover:underline font-medium">Revoke</button>`}
+        </div>
+      `);
+    }
+    wrap.querySelectorAll('[data-revoke]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Revoke this session?')) return;
+      await fetch('/api/account/sessions?id=' + encodeURIComponent(b.dataset.revoke), { method: 'DELETE', credentials: 'include' });
+      loadSessions();
+    }));
+  } catch { wrap.innerHTML = '<div class="text-red-600">Failed to load sessions.</div>'; }
+}
+
+async function confirmDeleteAccount() {
+  const pw = document.getElementById('delPw').value;
+  const errEl = document.getElementById('delErr');
+  errEl.classList.add('hidden');
+  if (!pw) { errEl.textContent = 'Password is required'; errEl.classList.remove('hidden'); return; }
+  const r = await fetch('/api/account/delete', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { errEl.textContent = data.error || 'Delete failed'; errEl.classList.remove('hidden'); return; }
+  alert('Your account has been deleted.');
+  window.location.href = '/';
+}
+
+function toast(msg, isErr = false) {
+  const t = document.createElement('div');
+  t.className = 'fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg font-medium text-sm ' + (isErr ? 'bg-red-600 text-white' : 'bg-navy-900 text-white');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
 
 </script>
 </body></html>
