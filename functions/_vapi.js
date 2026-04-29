@@ -165,20 +165,77 @@ export const syncAssistant = async (env, client) => {
   const prompt = buildSystemPrompt(client);
   const firstMessage = buildFirstMessage(client);
 
+  const payload = {
+    firstMessage,
+    model: {
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      messages: [{ role: 'system', content: prompt }],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'bookAppointment',
+            description: 'Book ONLY after the patient name AND phone (group-by-group read-back confirmed) AND date/time/service are all verified.',
+            parameters: {
+              type: 'object',
+              properties: {
+                patientName: { type: 'string', description: 'Full name (first and last)' },
+                patientPhone: { type: 'string', description: '10-digit US phone, verified by group-by-group read-back' },
+                patientEmail: { type: 'string' },
+                appointmentType: { type: 'string' },
+                requestedDateTime: { type: 'string', description: 'ISO 8601 datetime' },
+                notes: { type: 'string' },
+              },
+              required: ['patientName', 'patientPhone', 'appointmentType', 'requestedDateTime'],
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'sendUrgentAlert',
+            description: 'Send urgent SMS to practice owner. Only for true emergencies.',
+            parameters: {
+              type: 'object',
+              properties: {
+                patientName: { type: 'string' },
+                patientPhone: { type: 'string' },
+                reason: { type: 'string' },
+              },
+              required: ['reason'],
+            },
+          },
+        },
+      ],
+    },
+    transcriber: {
+      provider: 'deepgram',
+      model: 'nova-3',
+      language: 'multi',
+      numerals: true,
+      endpointing: 400,
+      smartFormat: true,
+      keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero'],
+    },
+    voice: {
+      provider: '11labs',
+      voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
+      model: 'eleven_multilingual_v2',
+      stability: 0.65,
+      similarityBoost: 0.85,
+    },
+    server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
+  };
+
   const r = await fetch(`https://api.vapi.ai/assistant/${client.vapi_assistant_id}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${env.VAPI_ORG_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      firstMessage,
-      model: {
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'system', content: prompt }],
-      },
-    }),
+    body: JSON.stringify(payload),
   });
   const data = await r.json();
   return { ok: r.ok, data, prompt_length: prompt.length };
