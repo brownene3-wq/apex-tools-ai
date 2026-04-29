@@ -107,17 +107,41 @@ export async function onRequestPost({ request, env }) {
 
       if (name === 'bookAppointment') {
         // Server-side data quality gate — reject bookings without a usable callback phone
-        const rawPhone = String(args.patientPhone || '');
-        const digits = rawPhone.replace(/\D/g, '');
-        const validPhone = digits.length >= 10 && digits.length <= 15;
+        // Convert Spanish/English digit words to digits as a safety net in case the AI passes spoken words
+        const wordToDigit = {
+          'cero': '0', 'zero': '0', 'oh': '0',
+          'uno': '1', 'una': '1', 'one': '1',
+          'dos': '2', 'two': '2',
+          'tres': '3', 'three': '3',
+          'cuatro': '4', 'four': '4',
+          'cinco': '5', 'five': '5',
+          'seis': '6', 'six': '6',
+          'siete': '7', 'seven': '7',
+          'ocho': '8', 'eight': '8',
+          'nueve': '9', 'nine': '9',
+        };
+        let rawPhone = String(args.patientPhone || '');
+        // First, replace any digit-words with digits
+        rawPhone = rawPhone.toLowerCase()
+          .replace(/[áéíóúñ]/g, (c) => ({á:'a',é:'e',í:'i',ó:'o',ú:'u',ñ:'n'}[c] || c))
+          .replace(/\b(cero|zero|oh|uno|una|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine)\b/g,
+                   (m) => wordToDigit[m] || m);
+        let digits = rawPhone.replace(/\D/g, '');
+        // If we got more than 15 digits, the AI may have passed the number doubled — take the FIRST 10
+        if (digits.length > 15 && digits.length % 10 === 0) {
+          digits = digits.slice(0, 10);
+        }
+        // Strip leading 1 (US country code) if present and gives us exactly 11
+        if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+        const validPhone = digits.length === 10;
         const validName = (args.patientName || '').trim().length >= 2;
         if (!validPhone || !validName) {
           await logUsage(env, client.id, 'appointment_rejected_bad_data', { reason: !validPhone ? 'invalid_phone' : 'invalid_name', got_phone: rawPhone, got_name: args.patientName });
           responses.push({
             toolCallId: fc.id,
             result: !validPhone
-              ? "I couldn't catch a complete phone number — please ask the caller to repeat their phone number digit by digit and read it back to confirm before trying to book again. Do not say the appointment is booked."
-              : "I need a full first and last name before booking. Please ask the caller for their full name."
+              ? `I need a complete 10-digit US phone number passed as digits only (got: "${args.patientPhone || 'empty'}", parsed to ${digits.length} digits). Ask the caller to repeat their phone number and pass the result as digits like "7863177581" — not as Spanish/English words and not duplicated.`
+              : "I need a full first and last name (first + last) before booking. Please ask the caller for their full name."
           });
           continue;
         }
