@@ -206,18 +206,77 @@ export async function onRequestPost({ request, env }) {
         } catch (e) { console.error('[integrations push]', e); }
         responses.push({ toolCallId: fc.id, result: 'Appointment booked successfully.' });
       } else if (name === 'sendUrgentAlert') {
-        // Multi-channel urgent alert: SMS + Email. Email is the fallback for US A2P 10DLC SMS blocking.
+        // Multi-channel urgent alert + AUTOMATIC appointment row creation.
+        // The AI used to be able to verbally confirm an "appointment" without us actually
+        // booking one. Fix: when the AI calls sendUrgentAlert with name + phone, we
+        // ALWAYS insert an appointments row (status='urgent') so the office sees it
+        // in their dashboard regardless of whether the AI also calls bookAppointment.
         await logUsage(env, client.id, 'urgent_escalation', args);
-        let smsOk = false, emailOk = false;
+        let smsOk = false, emailOk = false, apptCreated = false, apptId = null;
         const reason = args.reason || args.summary || 'Urgent caller on the line';
         const callerNumber = args.callerNumber || args.patientPhone || '';
         const callerName = args.patientName || '';
         const businessName = client.business_name || 'your practice';
 
+        // ---- Phone-digit normalization (same gate as bookAppointment) ----
+        const wordToDigit = {
+          'cero':'0','zero':'0','oh':'0',
+          'uno':'1','una':'1','one':'1',
+          'dos':'2','two':'2',
+          'tres':'3','three':'3',
+          'cuatro':'4','four':'4',
+          'cinco':'5','five':'5',
+          'seis':'6','six':'6',
+          'siete':'7','seven':'7',
+          'ocho':'8','eight':'8',
+          'nueve':'9','nine':'9',
+        };
+        let rawPhone = String(args.patientPhone || args.callerNumber || '');
+        rawPhone = rawPhone.toLowerCase()
+          .replace(/[áéíóúñ]/g, (c) => ({á:'a',é:'e',í:'i',ó:'o',ú:'u',ñ:'n'}[c] || c))
+          .replace(/\b(cero|zero|oh|uno|una|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine)\b/g,
+                   (m) => wordToDigit[m] || m);
+        let digits = rawPhone.replace(/\D/g, '');
+        if (digits.length > 15 && digits.length % 10 === 0) digits = digits.slice(0, 10);
+        if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+        const validPhone = digits.length === 10;
+        const validName = (callerName || '').trim().length >= 2;
+
+        // ---- Insert appointment row (status='urgent') if we have name + phone ----
+        if (validPhone && validName) {
+          apptId = newId('appt');
+          // Default: ASAP (now). If AI passed a requestedDateTime, use that.
+          const apptAt = args.requestedDateTime ? new Date(args.requestedDateTime).getTime() : Date.now();
+          try {
+            await env.DB.prepare(
+              `INSERT INTO appointments (id, client_id, patient_name, patient_phone, service, appointment_at, status, notes, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(apptId, client.id, callerName.trim(), '+1' + digits, args.appointmentType || 'URGENT — ' + reason, apptAt, 'urgent', reason, Date.now()).run();
+            await logUsage(env, client.id, 'appointment_booked', { name: callerName, urgent: true });
+            apptCreated = true;
+
+            // Push to integrations (Google Calendar / NexHealth / Calendly) so the practice's
+            // existing scheduling system also has it.
+            try {
+              await pushAppointmentToAll(env, client.id, {
+                patient_name: callerName.trim(),
+                patient_phone: '+1' + digits,
+                patient_email: args.patientEmail || null,
+                service: args.appointmentType || ('URGENT — ' + reason),
+                appointment_at: apptAt,
+                notes: 'URGENT: ' + reason,
+              });
+            } catch (e) { console.error('[urgent integrations push]', e); }
+          } catch (e) {
+            console.error('[urgent appt insert]', e);
+            await logUsage(env, client.id, 'urgent_appt_insert_failed', { err: String(e) });
+          }
+        }
+
         if (client.notify_urgent === 1 || client.notify_urgent === null) {
           // Try SMS via Twilio
           if (client.escalation_phone) {
-            const urgentBody = `URGENT — caller on the line at ${businessName}\nFrom: ${callerNumber || 'unknown'}\nName: ${callerName || 'unknown'}\nReason: ${reason}\n\nCall back immediately.`;
+            const urgentBody = `URGENT — caller on the line at ${businessName}\nFrom: ${callerNumber || ('+1' + digits) || 'unknown'}\nName: ${callerName || 'unknown'}\nReason: ${reason}\n\nCall back immediately.`;
             try {
               const r = await sendSMS(env, { to: client.escalation_phone, body: urgentBody });
               if (r.ok) { await logUsage(env, client.id, 'urgent_sms_sent', { sid: r.sid }); smsOk = true; }
@@ -234,13 +293,14 @@ export async function onRequestPost({ request, env }) {
                   <div style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
                     <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:16px 20px;border-radius:8px;margin-bottom:20px;">
                       <div style="color:#991b1b;font-weight:700;font-size:18px;margin-bottom:4px;">🚨 Urgent Call Alert</div>
-                      <div style="color:#7f1d1d;">A caller is reporting a dental emergency at ${escapeHtml(businessName)}.</div>
+                      <div style="color:#7f1d1d;">A caller is reporting an emergency at ${escapeHtml(businessName)}.</div>
                     </div>
                     <table style="width:100%;border-collapse:collapse;">
                       <tr><td style="padding:8px 0;color:#64748b;width:130px;">Caller name:</td><td style="padding:8px 0;font-weight:600;color:#0f172a;">${escapeHtml(callerName || 'Not provided')}</td></tr>
-                      <tr><td style="padding:8px 0;color:#64748b;">Caller phone:</td><td style="padding:8px 0;font-weight:600;color:#0f172a;"><a href="tel:${escapeHtml(callerNumber)}">${escapeHtml(callerNumber || 'Not provided')}</a></td></tr>
+                      <tr><td style="padding:8px 0;color:#64748b;">Caller phone:</td><td style="padding:8px 0;font-weight:600;color:#0f172a;"><a href="tel:${escapeHtml(callerNumber || ('+1' + digits))}">${escapeHtml(callerNumber || ('+1' + digits) || 'Not provided')}</a></td></tr>
                       <tr><td style="padding:8px 0;color:#64748b;">Reason:</td><td style="padding:8px 0;color:#0f172a;">${escapeHtml(reason)}</td></tr>
                       <tr><td style="padding:8px 0;color:#64748b;">Time:</td><td style="padding:8px 0;color:#0f172a;">${new Date().toLocaleString('en-US',{timeZone: client.timezone || 'America/New_York'})}</td></tr>
+                      ${apptCreated ? `<tr><td style="padding:8px 0;color:#64748b;">Booked:</td><td style="padding:8px 0;color:#16a34a;font-weight:600;">Yes — appt id ${apptId}</td></tr>` : ''}
                     </table>
                     <p style="color:#475569;line-height:1.6;margin-top:20px;">Call this person back as soon as possible. The AI told them you would.</p>
                     <p style="color:#94a3b8;font-size:13px;">This alert was triggered automatically by your AI receptionist when it detected an emergency.</p>
@@ -255,7 +315,7 @@ export async function onRequestPost({ request, env }) {
 
         const anySent = smsOk || emailOk;
         const successMsg = anySent
-          ? "URGENT_ALERT_SENT. Now say to the caller in THEIR language (Spanish if call was in Spanish, English if English): 'I just notified the office — they will call you back as soon as possible. Take care, and we will see you soon.' / 'Acabo de notificar a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.' Then end the call."
+          ? "URGENT_ALERT_SENT and appointment recorded in dashboard. Now say to the caller in THEIR language (Spanish if call was in Spanish, English if English): 'I just notified the office — they will call you back as soon as possible. Take care, and we will see you soon.' / 'Acabo de notificar a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.' Then end the call. Do NOT call bookAppointment — the urgent appointment is already saved."
           : "URGENT_NOTED. Notification channels not configured. Say to the caller in their language: 'I have noted this as urgent. Someone from the office will call you back shortly.' / 'He marcado esto como urgente. Alguien de la oficina lo llamará pronto.' Then end the call.";
         responses.push({ toolCallId: fc.id, result: successMsg });
       } else {

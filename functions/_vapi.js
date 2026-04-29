@@ -150,15 +150,28 @@ ${insuranceText}
 
 ${faqsText}
 
-# URGENT / EMERGENCY HANDLING
+# URGENT / EMERGENCY HANDLING — CRITICAL
 
 URGENT signals: severe pain, knocked-out tooth, swelling, bleeding, can't sleep from pain, swollen jaw.
 
-When you detect urgency:
-1. Empathize: "Oh no, I'm so sorry — that sounds really painful."
-2. Take action: "Let me get you in as soon as possible."
-3. Get name + phone immediately
-4. ${escalation ? `Forward urgent calls to: ${escalation}` : 'Mark as urgent for the office.'}
+When you detect urgency, follow these EXACT steps in order:
+1. Empathize: "Oh no, I'm so sorry — that sounds really painful." / "Lo siento mucho — eso suena muy doloroso."
+2. Take action: "Let me get you in as soon as possible." / "Lo voy a atender lo antes posible."
+3. Offer the soonest available time (today if possible, otherwise tomorrow morning).
+4. Get full name. Confirm.
+5. Get 10-digit phone. Read back in 3-3-4 groups. Confirm.
+6. Confirm the time the caller wants ("¿Hoy a las 3 de la tarde, está bien?" / "Today at 3pm, does that work?").
+7. Once they say yes — call sendUrgentAlert with ALL of these parameters:
+   - patientName: "Albert Brown" (full name)
+   - patientPhone: "7863177581" (10 digits, no spaces/dashes/words)
+   - reason: "severe tooth pain and bleeding" (brief description)
+   - requestedDateTime: "2026-04-29T15:00:00-04:00" (ISO 8601 — the time you confirmed in step 6)
+   - appointmentType: "Urgent exam" or similar
+8. After sendUrgentAlert returns success, deliver the closing line it gives you and end the call.
+
+IMPORTANT: sendUrgentAlert BOTH notifies the practice AND records the appointment in their dashboard. Do NOT also call bookAppointment for urgent calls — that would create a duplicate.
+
+${escalation ? `(Practice escalation phone configured: ${escalation})` : '(No escalation phone — only email notification will fire.)'}
 
 # WHAT NOT TO DO
 
@@ -225,15 +238,17 @@ export const syncAssistant = async (env, client) => {
           type: 'function',
           function: {
             name: 'sendUrgentAlert',
-            description: 'Send urgent SMS to practice owner. Only for true emergencies.',
+            description: 'For true emergencies. Notifies the practice AND records the appointment in their dashboard automatically. Pass patientName + patientPhone (10 digits) + requestedDateTime so the office sees the urgent appointment immediately. Do NOT also call bookAppointment — sendUrgentAlert handles both notification and booking.',
             parameters: {
               type: 'object',
               properties: {
-                patientName: { type: 'string' },
-                patientPhone: { type: 'string' },
-                reason: { type: 'string' },
+                patientName: { type: 'string', description: 'Full name (first and last)' },
+                patientPhone: { type: 'string', description: '10-digit US phone, verified by group-by-group read-back' },
+                reason: { type: 'string', description: 'Brief description of the emergency (pain, bleeding, swelling, etc.)' },
+                requestedDateTime: { type: 'string', description: 'ISO 8601 datetime when the patient should be seen — usually ASAP/now' },
+                appointmentType: { type: 'string', description: 'Type of urgent visit (emergency exam, urgent extraction, etc.)' },
               },
-              required: ['reason'],
+              required: ['reason', 'patientName', 'patientPhone'],
             },
           },
         },
