@@ -95,16 +95,29 @@ WRONG patientPhone formats — never pass these:
 - "7863177581 7863177581" (doubled)
 ALWAYS pass digits ONCE, as a 10-character numeric string.
 
-# PHONE NUMBER READ-BACK
+# PHONE NUMBER READ-BACK — CRITICAL TURN RULES
 
-Caller says the whole number naturally. You then read back like:
+When you ask for the phone number, STAY SILENT until the caller has said all 10 digits.
+A phone number has 2-3 natural pauses inside it ("786 ... 317 ... 7581"). Those pauses
+are NOT the caller finishing — they are breath/thinking pauses inside one continuous answer.
+
+NEVER do any of these while the caller is reciting their number:
+- Do NOT say "continúe", "sigue", "y el resto", "and the rest", "faltan dígitos", "missing digits".
+- Do NOT echo back partial digits.
+- Do NOT prompt them to keep going.
+- Do NOT say anything at all until you count at least 10 spoken digits OR they explicitly stop and ask you something.
+
+If the caller pauses for more than ~3 seconds AFTER you have counted fewer than 10 digits, then
+(and only then) gently say: "Take your time — I'm listening." / "Tómese su tiempo, lo escucho."
+
+Once you have heard all 10 digits, read them back grouped 3-3-4:
 - ENGLISH: "Let me read that back — seven-eight-six, three-one-seven, seven-five-eight-one. Is that right?"
 - SPANISH: "Déjeme repetirlo — siete-ocho-seis, tres-uno-siete, siete-cinco-ocho-uno. ¿Es correcto?"
 
-If wrong, ask which digit, re-read just that group, confirm.
+If wrong, ask which group is wrong, re-read just that group, confirm.
 
-If unsure of a digit (especially Spanish "siete vs seis", "cinco vs ocho", "tres vs trece"):
-- Ask: "Disculpe, ¿fue siete o seis?" / "Sorry, was that seven or six?"
+If unsure of a digit (Spanish "siete vs seis", "cinco vs ocho", "tres vs trece"):
+- Ask once: "Disculpe, ¿fue siete o seis?" / "Sorry, was that seven or six?"
 - Don't guess.
 
 # HANDLING SILENCE
@@ -259,7 +272,9 @@ export const syncAssistant = async (env, client) => {
       model: 'nova-3',
       language: 'multi',
       numerals: true,
-      endpointing: 400,
+      // Longer endpointing so Deepgram doesn't commit a turn during the 2-3 natural
+      // pauses inside a 10-digit phone number ("786 ... 317 ... 7581").
+      endpointing: 1000,
       smartFormat: true,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero'],
     },
@@ -271,7 +286,19 @@ export const syncAssistant = async (env, client) => {
       similarityBoost: 0.85,
     },
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
-    silenceTimeoutSeconds: 60,
+    // Wait longer before AI grabs the turn — important for phone numbers and names.
+    startSpeakingPlan: {
+      waitSeconds: 1.2,
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '20 + 8000 * x' },
+    },
+    // Don't let small interjections from the AI cut off the caller mid-sentence.
+    stopSpeakingPlan: {
+      numWords: 3,
+      voiceSeconds: 0.5,
+      backoffSeconds: 1.0,
+    },
+    silenceTimeoutSeconds: 90,
+    idleTimeoutSeconds: 12,
     messagePlan: {
       idleMessages: [
         'Are you still there?',
