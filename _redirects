@@ -8,3 +8,6 @@ https://www.apextoolsai.com/* https://apextoolsai.com/:splat 301!
 # Old language paths if anyone links wrong
 /spanish /es/ 301
 /english / 301
+
+/privacy   /privacy.html   200
+/terms     /terms.html     200
