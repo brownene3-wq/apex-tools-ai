@@ -1000,13 +1000,7 @@ async function confirmDeleteAccount() {
   window.location.href = '/';
 }
 
-function toast(msg, isErr = false) {
-  const t = document.createElement('div');
-  t.className = 'fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg font-medium text-sm ' + (isErr ? 'bg-red-600 text-white' : 'bg-navy-900 text-white');
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
-}
+// (toast helper already defined earlier in the file)
 
 </script>
 </body></html>
