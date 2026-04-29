@@ -106,12 +106,27 @@ export async function onRequestPost({ request, env }) {
       const args = typeof params === 'string' ? JSON.parse(params) : params;
 
       if (name === 'bookAppointment') {
+        // Server-side data quality gate — reject bookings without a usable callback phone
+        const rawPhone = String(args.patientPhone || '');
+        const digits = rawPhone.replace(/\D/g, '');
+        const validPhone = digits.length >= 10 && digits.length <= 15;
+        const validName = (args.patientName || '').trim().length >= 2;
+        if (!validPhone || !validName) {
+          await logUsage(env, client.id, 'appointment_rejected_bad_data', { reason: !validPhone ? 'invalid_phone' : 'invalid_name', got_phone: rawPhone, got_name: args.patientName });
+          responses.push({
+            toolCallId: fc.id,
+            result: !validPhone
+              ? "I couldn't catch a complete phone number — please ask the caller to repeat their phone number digit by digit and read it back to confirm before trying to book again. Do not say the appointment is booked."
+              : "I need a full first and last name before booking. Please ask the caller for their full name."
+          });
+          continue;
+        }
         const apptId = newId('appt');
         const apptAt = args.requestedDateTime ? new Date(args.requestedDateTime).getTime() : (Date.now() + 86400000);
         await env.DB.prepare(
           `INSERT INTO appointments (id, client_id, patient_name, patient_phone, service, appointment_at, status, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(apptId, client.id, args.patientName || 'Unknown', args.patientPhone || '', args.appointmentType || '', apptAt, 'booked', Date.now()).run();
+        ).bind(apptId, client.id, args.patientName.trim(), '+1' + digits.slice(-10), args.appointmentType || '', apptAt, 'booked', Date.now()).run();
         await logUsage(env, client.id, 'appointment_booked', { name: args.patientName });
 
         if (client.escalation_phone && (client.notify_appointment === 1 || client.notify_appointment === null)) {
