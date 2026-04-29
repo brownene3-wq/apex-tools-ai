@@ -89,3 +89,40 @@ export const logUsage = async (env, clientId, eventType, eventData = null) => {
     console.error('[logUsage]', e);
   }
 };
+
+// Send SMS via Twilio
+// Returns { ok: true, sid } on success or { ok: false, reason } on configuration miss / failure.
+export const sendSMS = async (env, { to, body }) => {
+  if (!to) return { ok: false, reason: 'no_recipient' };
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_FROM_NUMBER) {
+    console.log('[sms] (twilio not configured)', { to, body: (body || '').substring(0, 120) });
+    return { ok: false, reason: 'twilio_not_configured' };
+  }
+  // Normalize phone number to E.164
+  const cleaned = String(to).replace(/[^\d+]/g, '');
+  const e164 = cleaned.startsWith('+') ? cleaned : `+1${cleaned.replace(/^\+/, '')}`;
+  const auth = btoa(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`);
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        To: e164,
+        From: env.TWILIO_FROM_NUMBER,
+        Body: (body || '').substring(0, 1500),
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      console.error('[sms] twilio failed', r.status, data);
+      return { ok: false, reason: 'twilio_error', detail: data?.message };
+    }
+    return { ok: true, sid: data.sid };
+  } catch (e) {
+    console.error('[sms] threw', e.message);
+    return { ok: false, reason: 'exception', detail: e.message };
+  }
+};
