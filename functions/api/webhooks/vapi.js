@@ -177,7 +177,7 @@ export async function onRequestPost({ request, env }) {
       } else if (name === 'sendUrgentAlert') {
         // Real urgent SMS to the practice's escalation phone
         await logUsage(env, client.id, 'urgent_escalation', args);
-        let smsResult = 'Office has been alerted.';
+        let smsSent = false;
         if (client.escalation_phone && (client.notify_urgent === 1 || client.notify_urgent === null)) {
           const reason = args.reason || args.summary || 'Urgent caller on the line';
           const callerNumber = args.callerNumber || args.patientPhone || '';
@@ -186,13 +186,17 @@ export async function onRequestPost({ request, env }) {
             const r = await sendSMS(env, { to: client.escalation_phone, body: urgentBody });
             if (r.ok) {
               await logUsage(env, client.id, 'urgent_sms_sent', { sid: r.sid });
-              smsResult = 'Office has been texted and alerted.';
+              smsSent = true;
             } else {
               await logUsage(env, client.id, 'urgent_sms_failed', { reason: r.reason });
             }
           } catch (e) { console.error('[urgent sms via fc]', e); }
         }
-        responses.push({ toolCallId: fc.id, result: smsResult });
+        // Return a structured instruction telling the AI EXACTLY what to say next, then end the call.
+        const successMsg = smsSent
+          ? "URGENT_ALERT_SENT. Now say to the caller in THEIR language (Spanish if call was in Spanish, English if English): 'I just texted the office — they will call you back as soon as possible. Take care, and we will see you soon.' / 'Acabo de enviarle un mensaje a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.' Then end the call."
+          : "URGENT_NOTED. Office contact is not configured for SMS. Say to the caller in their language: 'I have noted this as urgent. Someone from the office will call you back shortly.' / 'He marcado esto como urgente. Alguien de la oficina lo llamará pronto.' Then end the call.";
+        responses.push({ toolCallId: fc.id, result: successMsg });
       } else {
         responses.push({ toolCallId: fc.id, result: 'OK' });
       }
