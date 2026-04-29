@@ -1,7 +1,7 @@
 // POST /api/webhooks/vapi — Vapi posts end-of-call reports + function calls here.
 // Maps the Vapi assistant ID to our client_id, then inserts call_logs / appointments.
 // Configure Vapi assistant Server URL = https://apextoolsai.com/api/webhooks/vapi
-import { json, newId, logUsage, sendSMS } from '../../_lib.js';
+import { json, newId, logUsage, sendSMS, sendEmail, escapeHtml } from '../../_lib.js';
 import { pushAppointmentToAll } from '../../_integrations.js';
 
 export async function onRequestPost({ request, env }) {
@@ -49,14 +49,30 @@ export async function onRequestPost({ request, env }) {
     await logUsage(env, client.id, 'call_received', { duration: durationSec, language, urgent: !!wasUrgent });
 
     // Send urgent-call SMS to the practice's escalation phone (respects notify_urgent toggle)
-    if (wasUrgent && client.escalation_phone && (client.notify_urgent === 1 || client.notify_urgent === null)) {
+    if (wasUrgent && (client.notify_urgent === 1 || client.notify_urgent === null)) {
       const langLabel = language === 'es' ? 'Spanish' : 'English';
-      const urgentBody = `URGENT call to ${client.business_name || 'your practice'}\nFrom: ${callerNumber || 'unknown'}\nLanguage: ${langLabel}\nSummary: ${(summary || transcript || '').substring(0, 220)}\n\nReply or call back ASAP.`;
-      try {
-        const smsRes = await sendSMS(env, { to: client.escalation_phone, body: urgentBody });
-        if (smsRes.ok) await logUsage(env, client.id, 'urgent_sms_sent', { sid: smsRes.sid });
-        else await logUsage(env, client.id, 'urgent_sms_failed', { reason: smsRes.reason });
-      } catch (e) { console.error('[urgent sms]', e); }
+      const businessName = client.business_name || 'your practice';
+      const summarySnippet = (summary || transcript || '').substring(0, 220);
+      // SMS
+      if (client.escalation_phone) {
+        try {
+          const urgentBody = `URGENT call to ${businessName}\nFrom: ${callerNumber || 'unknown'}\nLanguage: ${langLabel}\nSummary: ${summarySnippet}\n\nReply or call back ASAP.`;
+          const smsRes = await sendSMS(env, { to: client.escalation_phone, body: urgentBody });
+          if (smsRes.ok) await logUsage(env, client.id, 'urgent_sms_sent', { sid: smsRes.sid });
+          else await logUsage(env, client.id, 'urgent_sms_failed', { reason: smsRes.reason });
+        } catch (e) { console.error('[urgent sms]', e); }
+      }
+      // Email fallback (always works, no carrier filtering)
+      if (client.email) {
+        try {
+          await sendEmail(env, {
+            to: client.email,
+            subject: `🚨 URGENT call missed at ${businessName}`,
+            html: `<div style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;"><div style="background:#fef2f2;border-left:4px solid #dc2626;padding:16px 20px;border-radius:8px;margin-bottom:20px;"><div style="color:#991b1b;font-weight:700;font-size:18px;margin-bottom:4px;">🚨 Urgent call recorded</div><div style="color:#7f1d1d;">An urgent caller just hung up at ${escapeHtml(businessName)}.</div></div><table style="width:100%;border-collapse:collapse;"><tr><td style="padding:6px 0;color:#64748b;width:120px;">Caller phone:</td><td><a href="tel:${escapeHtml(callerNumber || '')}">${escapeHtml(callerNumber || 'Not captured')}</a></td></tr><tr><td style="padding:6px 0;color:#64748b;">Language:</td><td>${langLabel}</td></tr><tr><td style="padding:6px 0;color:#64748b;">Summary:</td><td>${escapeHtml(summarySnippet)}</td></tr></table><p style="color:#475569;line-height:1.6;margin-top:16px;">Please call this person back as soon as possible.</p></div>`,
+          });
+          await logUsage(env, client.id, 'urgent_email_sent');
+        } catch (e) { console.error('[urgent email]', e); }
+      }
     }
 
     // Auto-extract appointment from structured data if Vapi parsed one
@@ -153,14 +169,29 @@ export async function onRequestPost({ request, env }) {
         ).bind(apptId, client.id, args.patientName.trim(), '+1' + digits.slice(-10), args.appointmentType || '', apptAt, 'booked', Date.now()).run();
         await logUsage(env, client.id, 'appointment_booked', { name: args.patientName });
 
-        if (client.escalation_phone && (client.notify_appointment === 1 || client.notify_appointment === null)) {
+        if (client.notify_appointment === 1 || client.notify_appointment === null) {
           const apptDate = new Date(apptAt);
-          const dateStr = apptDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-          const apptBody = `New appointment booked at ${client.business_name || 'your practice'}\nPatient: ${args.patientName || 'Unknown'}\nPhone: ${args.patientPhone || 'unknown'}\nService: ${args.appointmentType || 'general'}\nWhen: ${dateStr}`;
-          try {
-            const r = await sendSMS(env, { to: client.escalation_phone, body: apptBody });
-            if (r.ok) await logUsage(env, client.id, 'appointment_sms_sent', { sid: r.sid });
-          } catch (e) { console.error('[appt sms]', e); }
+          const dateStr = apptDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: client.timezone || 'America/New_York' });
+          const businessName = client.business_name || 'your practice';
+          // SMS (may be blocked by US A2P)
+          if (client.escalation_phone) {
+            const apptBody = `New appointment at ${businessName}\n${args.patientName || 'Unknown'} — ${args.appointmentType || 'general'}\nPhone: ${args.patientPhone || 'unknown'}\nWhen: ${dateStr}`;
+            try {
+              const r = await sendSMS(env, { to: client.escalation_phone, body: apptBody });
+              if (r.ok) await logUsage(env, client.id, 'appointment_sms_sent', { sid: r.sid });
+            } catch (e) { console.error('[appt sms]', e); }
+          }
+          // Email — always-deliverable fallback
+          if (client.email) {
+            try {
+              await sendEmail(env, {
+                to: client.email,
+                subject: `📅 New appointment booked: ${args.patientName || 'patient'} — ${dateStr}`,
+                html: `<div style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;"><h2 style="color:#0a1628;">New appointment at ${escapeHtml(businessName)}</h2><table style="width:100%;border-collapse:collapse;"><tr><td style="padding:6px 0;color:#64748b;width:120px;">Patient:</td><td style="padding:6px 0;font-weight:600;">${escapeHtml(args.patientName || 'Unknown')}</td></tr><tr><td style="padding:6px 0;color:#64748b;">Phone:</td><td style="padding:6px 0;"><a href="tel:${escapeHtml(args.patientPhone || '')}">${escapeHtml(args.patientPhone || 'Unknown')}</a></td></tr><tr><td style="padding:6px 0;color:#64748b;">Service:</td><td style="padding:6px 0;">${escapeHtml(args.appointmentType || 'general')}</td></tr><tr><td style="padding:6px 0;color:#64748b;">When:</td><td style="padding:6px 0;font-weight:600;color:#0f172a;">${escapeHtml(dateStr)}</td></tr></table><p style="color:#475569;line-height:1.6;margin-top:16px;">Booked automatically by your AI receptionist. View in your dashboard.</p></div>`,
+              });
+              await logUsage(env, client.id, 'appointment_email_sent');
+            } catch (e) { console.error('[appt email]', e); }
+          }
         }
 
         try {
@@ -175,27 +206,57 @@ export async function onRequestPost({ request, env }) {
         } catch (e) { console.error('[integrations push]', e); }
         responses.push({ toolCallId: fc.id, result: 'Appointment booked successfully.' });
       } else if (name === 'sendUrgentAlert') {
-        // Real urgent SMS to the practice's escalation phone
+        // Multi-channel urgent alert: SMS + Email. Email is the fallback for US A2P 10DLC SMS blocking.
         await logUsage(env, client.id, 'urgent_escalation', args);
-        let smsSent = false;
-        if (client.escalation_phone && (client.notify_urgent === 1 || client.notify_urgent === null)) {
-          const reason = args.reason || args.summary || 'Urgent caller on the line';
-          const callerNumber = args.callerNumber || args.patientPhone || '';
-          const urgentBody = `URGENT — caller on the line at ${client.business_name || 'your practice'}\nReason: ${reason}\nFrom: ${callerNumber || 'unknown'}\n\nCall back immediately.`;
-          try {
-            const r = await sendSMS(env, { to: client.escalation_phone, body: urgentBody });
-            if (r.ok) {
-              await logUsage(env, client.id, 'urgent_sms_sent', { sid: r.sid });
-              smsSent = true;
-            } else {
-              await logUsage(env, client.id, 'urgent_sms_failed', { reason: r.reason });
-            }
-          } catch (e) { console.error('[urgent sms via fc]', e); }
+        let smsOk = false, emailOk = false;
+        const reason = args.reason || args.summary || 'Urgent caller on the line';
+        const callerNumber = args.callerNumber || args.patientPhone || '';
+        const callerName = args.patientName || '';
+        const businessName = client.business_name || 'your practice';
+
+        if (client.notify_urgent === 1 || client.notify_urgent === null) {
+          // Try SMS via Twilio
+          if (client.escalation_phone) {
+            const urgentBody = `URGENT — caller on the line at ${businessName}\nFrom: ${callerNumber || 'unknown'}\nName: ${callerName || 'unknown'}\nReason: ${reason}\n\nCall back immediately.`;
+            try {
+              const r = await sendSMS(env, { to: client.escalation_phone, body: urgentBody });
+              if (r.ok) { await logUsage(env, client.id, 'urgent_sms_sent', { sid: r.sid }); smsOk = true; }
+              else { await logUsage(env, client.id, 'urgent_sms_failed', { reason: r.reason }); }
+            } catch (e) { console.error('[urgent sms]', e); }
+          }
+          // Always also send email — never blocked by carriers, always delivered
+          if (client.email) {
+            try {
+              const e = await sendEmail(env, {
+                to: client.email,
+                subject: `🚨 URGENT call from ${callerName || callerNumber || 'a patient'} — ${businessName}`,
+                html: `
+                  <div style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
+                    <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:16px 20px;border-radius:8px;margin-bottom:20px;">
+                      <div style="color:#991b1b;font-weight:700;font-size:18px;margin-bottom:4px;">🚨 Urgent Call Alert</div>
+                      <div style="color:#7f1d1d;">A caller is reporting a dental emergency at ${escapeHtml(businessName)}.</div>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;">
+                      <tr><td style="padding:8px 0;color:#64748b;width:130px;">Caller name:</td><td style="padding:8px 0;font-weight:600;color:#0f172a;">${escapeHtml(callerName || 'Not provided')}</td></tr>
+                      <tr><td style="padding:8px 0;color:#64748b;">Caller phone:</td><td style="padding:8px 0;font-weight:600;color:#0f172a;"><a href="tel:${escapeHtml(callerNumber)}">${escapeHtml(callerNumber || 'Not provided')}</a></td></tr>
+                      <tr><td style="padding:8px 0;color:#64748b;">Reason:</td><td style="padding:8px 0;color:#0f172a;">${escapeHtml(reason)}</td></tr>
+                      <tr><td style="padding:8px 0;color:#64748b;">Time:</td><td style="padding:8px 0;color:#0f172a;">${new Date().toLocaleString('en-US',{timeZone: client.timezone || 'America/New_York'})}</td></tr>
+                    </table>
+                    <p style="color:#475569;line-height:1.6;margin-top:20px;">Call this person back as soon as possible. The AI told them you would.</p>
+                    <p style="color:#94a3b8;font-size:13px;">This alert was triggered automatically by your AI receptionist when it detected an emergency.</p>
+                  </div>
+                `,
+              });
+              if (e?.ok || e?.id) { await logUsage(env, client.id, 'urgent_email_sent'); emailOk = true; }
+              else { await logUsage(env, client.id, 'urgent_email_failed', e); }
+            } catch (e) { console.error('[urgent email]', e); }
+          }
         }
-        // Return a structured instruction telling the AI EXACTLY what to say next, then end the call.
-        const successMsg = smsSent
-          ? "URGENT_ALERT_SENT. Now say to the caller in THEIR language (Spanish if call was in Spanish, English if English): 'I just texted the office — they will call you back as soon as possible. Take care, and we will see you soon.' / 'Acabo de enviarle un mensaje a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.' Then end the call."
-          : "URGENT_NOTED. Office contact is not configured for SMS. Say to the caller in their language: 'I have noted this as urgent. Someone from the office will call you back shortly.' / 'He marcado esto como urgente. Alguien de la oficina lo llamará pronto.' Then end the call.";
+
+        const anySent = smsOk || emailOk;
+        const successMsg = anySent
+          ? "URGENT_ALERT_SENT. Now say to the caller in THEIR language (Spanish if call was in Spanish, English if English): 'I just notified the office — they will call you back as soon as possible. Take care, and we will see you soon.' / 'Acabo de notificar a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.' Then end the call."
+          : "URGENT_NOTED. Notification channels not configured. Say to the caller in their language: 'I have noted this as urgent. Someone from the office will call you back shortly.' / 'He marcado esto como urgente. Alguien de la oficina lo llamará pronto.' Then end the call.";
         responses.push({ toolCallId: fc.id, result: successMsg });
       } else {
         responses.push({ toolCallId: fc.id, result: 'OK' });
