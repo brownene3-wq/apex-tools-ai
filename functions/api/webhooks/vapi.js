@@ -327,9 +327,32 @@ export async function onRequestPost({ request, env }) {
         }
 
         const anySent = smsOk || emailOk;
+        // Format the booked time for the AI's confirmation line. Use America/New_York
+        // since most clients are East Coast; client-specific tz overrides if set.
+        let timeStrEN = '', timeStrES = '';
+        if (apptCreated && apptId) {
+          const tz = client.timezone || 'America/New_York';
+          const apptDate = new Date(args.requestedDateTime ? new Date(args.requestedDateTime).getTime() : Date.now());
+          try {
+            timeStrEN = apptDate.toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: 'numeric', timeZone: tz });
+            timeStrES = apptDate.toLocaleString('es-US', { weekday: 'long', hour: 'numeric', minute: 'numeric', timeZone: tz });
+          } catch { timeStrEN = 'the time we just confirmed'; timeStrES = 'la hora que confirmamos'; }
+        }
         const successMsg = anySent
-          ? "URGENT_ALERT_SENT and appointment recorded in dashboard. Speak ONE language only — match the language used so far in this call. If the call has been in English, say: \"I just notified the office — they will call you back as soon as possible. Take care, and we will see you soon.\" If the call has been in Spanish, say: \"Acabo de notificar a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.\" Pick ONE. Do NOT say both. Then end the call. Do NOT call bookAppointment — the urgent appointment is already saved."
-          : "URGENT_NOTED. Notification channels not configured. Speak ONE language only — match the call language. English: \"I have noted this as urgent. Someone from the office will call you back shortly.\" Spanish: \"He marcado esto como urgente. Alguien de la oficina lo llamará pronto.\" Pick one. Do NOT say both. Then end the call.";
+          ? `URGENT_ALERT_SENT. Appointment is BOOKED in the dashboard for the time the caller agreed to. Speak ONE language only matching the call language. The caller needs to hear (a) confirmation their appointment is set, (b) that the office is also being notified, (c) a warm closing.
+
+If call was in ENGLISH say exactly: "Perfect — I have you down for ${timeStrEN || 'the time we just confirmed'} as an urgent visit, and I've notified the office so they're expecting you. If anything changes they'll call you right back. Take care, and we'll see you soon."
+
+If call was in SPANISH say exactly: "Perfecto — lo tengo apuntado para ${timeStrES || 'la hora que confirmamos'} como cita urgente, y ya notifiqué a la oficina para que lo estén esperando. Si algo cambia, lo llaman de regreso. Cuídese mucho, lo esperamos."
+
+Pick ONE language. Do NOT say both. Then end the call. Do NOT call bookAppointment — the urgent appointment is already saved.`
+          : `URGENT_NOTED. Notification channels are NOT configured for this practice — but the appointment IS saved in the dashboard. Speak ONE language only matching the call language.
+
+ENGLISH: "I have you down for ${timeStrEN || 'the time we agreed on'} as an urgent visit. The office will see this and call you back to confirm. Take care."
+
+SPANISH: "Lo tengo apuntado para ${timeStrES || 'la hora que acordamos'} como cita urgente. La oficina lo va a ver y lo llamarán para confirmar. Cuídese."
+
+Pick ONE. Do NOT say both. Then end the call.`;
         responses.push({ toolCallId: fc.id, result: successMsg });
       } else {
         responses.push({ toolCallId: fc.id, result: 'OK' });
