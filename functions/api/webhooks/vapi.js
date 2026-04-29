@@ -328,8 +328,8 @@ export async function onRequestPost({ request, env }) {
 
         const anySent = smsOk || emailOk;
         const successMsg = anySent
-          ? "URGENT_ALERT_SENT and appointment recorded in dashboard. Now say to the caller in THEIR language (Spanish if call was in Spanish, English if English): 'I just notified the office — they will call you back as soon as possible. Take care, and we will see you soon.' / 'Acabo de notificar a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.' Then end the call. Do NOT call bookAppointment — the urgent appointment is already saved."
-          : "URGENT_NOTED. Notification channels not configured. Say to the caller in their language: 'I have noted this as urgent. Someone from the office will call you back shortly.' / 'He marcado esto como urgente. Alguien de la oficina lo llamará pronto.' Then end the call.";
+          ? "URGENT_ALERT_SENT and appointment recorded in dashboard. Speak ONE language only — match the language used so far in this call. If the call has been in English, say: \"I just notified the office — they will call you back as soon as possible. Take care, and we will see you soon.\" If the call has been in Spanish, say: \"Acabo de notificar a la oficina — lo van a llamar lo antes posible. Cuídese mucho, y nos vemos pronto.\" Pick ONE. Do NOT say both. Then end the call. Do NOT call bookAppointment — the urgent appointment is already saved."
+          : "URGENT_NOTED. Notification channels not configured. Speak ONE language only — match the call language. English: \"I have noted this as urgent. Someone from the office will call you back shortly.\" Spanish: \"He marcado esto como urgente. Alguien de la oficina lo llamará pronto.\" Pick one. Do NOT say both. Then end the call.";
         responses.push({ toolCallId: fc.id, result: successMsg });
       } else {
         responses.push({ toolCallId: fc.id, result: 'OK' });

@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 16;
+export const PROMPT_VERSION = 17;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -218,7 +218,7 @@ URGENT signals: severe pain, knocked-out tooth, swelling, bleeding, can't sleep 
 When you detect urgency, follow these EXACT steps in order:
 1. Empathize: "Oh no, I'm so sorry — that sounds really painful." / "Lo siento mucho — eso suena muy doloroso."
 2. Take action: "Let me get you in as soon as possible." / "Lo voy a atender lo antes posible."
-3. Offer the soonest available time (today if possible, otherwise tomorrow morning).
+3. Offer 2 specific times — the soonest today AND a backup tomorrow morning. Example: "Tengo hoy a las tres de la tarde, o mañana a las diez de la mañana. ¿Cuál le conviene más?" / "I have today at three pm, or tomorrow at ten am. Which works better?"
 4. Get full name. Confirm.
 5. Get 10-digit phone. Read back in 3-3-4 groups. Confirm.
 6. Confirm the time the caller wants ("¿Hoy a las 3 de la tarde, está bien?" / "Today at 3pm, does that work?").
@@ -245,7 +245,10 @@ NEVER:
 
 # CALL ENDING
 
-End calls with: "Thank you for calling ${business}. We look forward to seeing you!" (or Spanish equivalent if call was in Spanish)`;
+End calls with ONE language only — match the call language, do NOT say both:
+- If call was in English: "Thank you for calling ${business}. We look forward to seeing you!"
+- If call was in Spanish: "Gracias por llamar a ${business}. Lo esperamos."
+NEVER say both lines back to back. Pick the right one for the call language and stop.`;
 };
 
 export const buildFirstMessage = (client) => {
