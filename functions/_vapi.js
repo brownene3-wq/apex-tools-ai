@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 14;
+export const PROMPT_VERSION = 15;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -318,9 +318,9 @@ export const syncAssistant = async (env, client) => {
       model: 'nova-3',
       language: 'multi',
       numerals: true,
-      // Longer endpointing so Deepgram doesn't commit a turn during the 2-3 natural
-      // pauses inside a 10-digit phone number ("786 ... 317 ... 7581").
-      endpointing: 1000,
+      // Vapi caps endpointing at 500ms. We compensate for natural intra-number
+      // pauses with startSpeakingPlan.waitSeconds + smart-endpointing livekit below.
+      endpointing: 500,
       smartFormat: true,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero'],
     },
@@ -334,8 +334,10 @@ export const syncAssistant = async (env, client) => {
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
-      waitSeconds: 1.2,
-      smartEndpointingPlan: { provider: 'livekit', waitFunction: '20 + 8000 * x' },
+      // Longer wait + livekit smart endpointing to cover natural intra-number pauses
+      // (AI won't grab the turn during the gap between '786' and '317').
+      waitSeconds: 1.6,
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '50 + 8000 * x' },
     },
     // Don't let small interjections from the AI cut off the caller mid-sentence.
     stopSpeakingPlan: {
@@ -344,14 +346,13 @@ export const syncAssistant = async (env, client) => {
       backoffSeconds: 1.0,
     },
     silenceTimeoutSeconds: 90,
-    idleTimeoutSeconds: 12,
     messagePlan: {
       idleMessages: [
         'Are you still there?',
         "I'm here whenever you're ready — take your time.",
         "Hello? Just checking you're still on the line.",
       ],
-      idleTimeoutSeconds: 8,
+      idleTimeoutSeconds: 12,
       idleMessageMaxSpokenCount: 3,
     },
     // endCallMessage intentionally omitted — Vapi appends it in static English regardless
