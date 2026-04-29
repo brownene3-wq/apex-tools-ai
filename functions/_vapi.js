@@ -281,7 +281,8 @@ export const syncAssistant = async (env, client) => {
       idleTimeoutSeconds: 8,
       idleMessageMaxSpokenCount: 3,
     },
-    endCallMessage: "I'm going to let you go for now. Thanks for calling — feel free to call back anytime.",
+    // endCallMessage intentionally omitted — Vapi appends it in static English regardless
+    // of call language, leaking English into Spanish calls. AI's own closing line handles this.
   };
 
   const r = await fetch(`https://api.vapi.ai/assistant/${client.vapi_assistant_id}`, {
