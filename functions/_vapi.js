@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 15;
+export const PROMPT_VERSION = 16;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -143,7 +143,9 @@ ALWAYS pass digits ONCE, as a 10-character numeric string.
 
 # PHONE NUMBER READ-BACK — CRITICAL TURN RULES
 
-When you ask for the phone number, STAY SILENT until the caller has said all 10 digits.
+When you ask for the phone number, STAY ABSOLUTELY SILENT until the caller has said all 10 digits.
+Do not respond to a period, comma, or pause. Periods and commas mid-number are transcription
+artifacts, NOT signals that the caller is done. Count digits, not punctuation.
 A phone number has 2-3 natural pauses inside it ("786 ... 317 ... 7581"). Those pauses
 are NOT the caller finishing — they are breath/thinking pauses inside one continuous answer.
 
@@ -251,7 +253,7 @@ export const buildFirstMessage = (client) => {
   const langPref = client.language_pref || 'both';
   if (langPref === 'es') return `Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
   if (langPref === 'en') return `Thank you for calling ${business}, how can I help you today?`;
-  return `Thank you for calling ${business}. Gracias por llamar a ${business}. How can I help you today?`;
+  return `Thank you for calling ${business}, gracias por llamar a ${business} — how can I help you today? ¿En qué le puedo ayudar?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
@@ -321,7 +323,11 @@ export const syncAssistant = async (env, client) => {
       // Vapi caps endpointing at 500ms. We compensate for natural intra-number
       // pauses with startSpeakingPlan.waitSeconds + smart-endpointing livekit below.
       endpointing: 500,
-      smartFormat: true,
+      // smartFormat OFF: it was inserting periods mid-utterance after spoken digit
+      // groups (e.g. "Siete ocho seis." after the area code), which Vapi treated as
+      // a hard turn boundary. AI interrupted the caller. Punctuation isn't needed
+      // here — the prompt drives the digit-group readback explicitly.
+      smartFormat: false,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero'],
     },
     voice: {
@@ -334,10 +340,13 @@ export const syncAssistant = async (env, client) => {
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
-      // Longer wait + livekit smart endpointing to cover natural intra-number pauses
-      // (AI won't grab the turn during the gap between '786' and '317').
-      waitSeconds: 1.6,
-      smartEndpointingPlan: { provider: 'livekit', waitFunction: '50 + 8000 * x' },
+      // Long wait + lenient livekit smart endpointing to cover natural intra-number
+      // pauses ("786 ... 317 ... 7581"). Smart endpointing's x is the prob the user
+      // is done; waitFunction outputs ms to wait. Even at high probability we wait
+      // ~250ms; at low probability up to 12s — so the AI hesitates rather than
+      // talking over a continuing number.
+      waitSeconds: 2.5,
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '250 + 12000 * x' },
     },
     // Don't let small interjections from the AI cut off the caller mid-sentence.
     stopSpeakingPlan: {
