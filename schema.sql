@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS clients (
   vapi_assistant_id TEXT,
   twilio_phone_number TEXT,
   cal_event_url TEXT,
+  last_synced_prompt_version INTEGER DEFAULT 0,
 
   -- Practice info (used by the AI)
   hours_json TEXT, -- JSON: {monday: "9-5", ...}

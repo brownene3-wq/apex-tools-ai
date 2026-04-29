@@ -1,7 +1,7 @@
 // GET /api/config — fetch current AI config for client
 // PATCH /api/config — update fields and push to Vapi
 import { json, requireAuth, error, logUsage } from '../_lib.js';
-import { syncAssistant } from '../_vapi.js';
+import { syncAssistant, ensureAssistantSynced } from '../_vapi.js';
 
 const ALLOWED_FIELDS = ['hours_json', 'services_json', 'insurance_json', 'faqs_json', 'voice_id', 'greeting', 'escalation_phone', 'language_pref', 'business_name', 'business_address', 'phone', 'practice_type'];
 
@@ -11,6 +11,9 @@ export async function onRequestGet(context) {
     'SELECT email, full_name, business_name, business_address, phone, practice_type, language_pref, hours_json, services_json, insurance_json, faqs_json, voice_id, greeting, escalation_phone, twilio_phone_number, vapi_assistant_id FROM clients WHERE id = ?'
   ).bind(context.data.user.id).first();
   if (!row) return error('Client not found', 404);
+  // Lazy-sync: if we deployed a new PROMPT_VERSION, push it to Vapi now (before
+  // the client's next call). No-op if already in sync.
+  try { await ensureAssistantSynced(context.env, row); } catch (e) { console.error('[ensureAssistantSynced /api/config GET]', e); }
   return json({ config: row });
 }
 

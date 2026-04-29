@@ -3,6 +3,7 @@
 // Configure Vapi assistant Server URL = https://apextoolsai.com/api/webhooks/vapi
 import { json, newId, logUsage, sendSMS, sendEmail, escapeHtml } from '../../_lib.js';
 import { pushAppointmentToAll } from '../../_integrations.js';
+import { ensureAssistantSynced } from '../../_vapi.js';
 
 export async function onRequestPost({ request, env }) {
   let body;
@@ -22,6 +23,18 @@ export async function onRequestPost({ request, env }) {
     console.log('[vapi-webhook] unknown assistant', assistantId, type);
     return json({ ok: true, ignored: true });
   }
+
+  // Auto-sync the live Vapi assistant if the latest deploy bumped PROMPT_VERSION.
+  // Most calls this is a no-op (cheap field check). Only runs syncAssistant on the
+  // first call after a deploy with a higher version number.
+  try {
+    const sync = await ensureAssistantSynced(env, client);
+    if (sync && !sync.skipped && sync.ok) {
+      await logUsage(env, client.id, 'assistant_auto_synced', { version: sync.version });
+    } else if (sync && !sync.skipped && !sync.ok) {
+      await logUsage(env, client.id, 'assistant_auto_sync_failed', { error: sync.error });
+    }
+  } catch (e) { console.error('[ensureAssistantSynced]', e); }
 
   // ---- END OF CALL REPORT ----
   if (type === 'end-of-call-report') {

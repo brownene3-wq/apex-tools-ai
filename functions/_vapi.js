@@ -3,6 +3,27 @@
 const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
 const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday', sun:'Sunday' };
 
+// Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
+// The webhook checks each client's last_synced_prompt_version and auto-runs
+// syncAssistant before processing a call when this number is higher.
+export const PROMPT_VERSION = 14;
+
+// Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
+// re-push the assistant config to Vapi and bump the stored version.
+export const ensureAssistantSynced = async (env, client) => {
+  if (!client?.vapi_assistant_id) return { ok: false, skipped: true, reason: 'no assistant' };
+  const stored = client.last_synced_prompt_version || 0;
+  if (stored >= PROMPT_VERSION) return { ok: true, skipped: true, version: stored };
+  const r = await syncAssistant(env, client);
+  if (r.ok) {
+    try {
+      await env.DB.prepare('UPDATE clients SET last_synced_prompt_version = ?, updated_at = ? WHERE id = ?')
+        .bind(PROMPT_VERSION, Date.now(), client.id).run();
+    } catch (e) { console.error('[ensureAssistantSynced] could not store version', e); }
+  }
+  return { ok: r.ok, version: PROMPT_VERSION, error: r.error || r.data?.message };
+};
+
 const parseJSON = (s, fallback) => {
   if (!s) return fallback;
   try { return typeof s === 'string' ? JSON.parse(s) : s; } catch { return fallback; }

@@ -1,7 +1,21 @@
 // Cloudflare Pages global middleware — runs on every request
-// Handles: CORS, security headers, session loading
+// Handles: CORS, security headers, session loading, schema migrations
+
+let _migrationsRan = false;
+const ensureSchemaUpToDate = async (env) => {
+  if (_migrationsRan || !env?.DB) return;
+  _migrationsRan = true;
+  // Idempotent column adds — D1 throws if column already exists, ignore.
+  const safeAdds = [
+    "ALTER TABLE clients ADD COLUMN last_synced_prompt_version INTEGER DEFAULT 0",
+  ];
+  for (const stmt of safeAdds) {
+    try { await env.DB.prepare(stmt).run(); } catch (e) { /* column exists or table missing — ignore */ }
+  }
+};
 
 export async function onRequest(context) {
+  await ensureSchemaUpToDate(context.env);
   const { request, next, env } = context;
   const url = new URL(request.url);
 
