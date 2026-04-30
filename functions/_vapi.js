@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 40;
+export const PROMPT_VERSION = 41;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -631,15 +631,15 @@ export const syncAssistant = async (env, client) => {
       // to back which felt repetitive. Spanish speakers in South Florida are
       // the primary at-risk audience for missing a prompt; English speakers
       // understand '¿Hola?' fine.
-      // First prompt English, second Spanish — Vapi plays them in order on
-      // each silence interval. Every silent caller gets a check-in in their
-      // language within 16s (one or both messages will hit), regardless of
-      // which language they locked the call to. Vapi doesn't support dynamic
-      // per-language idle messages directly, so this static rotation is the
-      // best workable solution.
+      // Both idle messages in English. Vapi picks idle messages RANDOMLY (not
+      // in order), so mixing languages produced unpredictable results — Albert's
+      // English calls were rolling Spanish prompts. English is the safer default
+      // because Spanish-speaking callers in South Florida virtually always
+      // understand 'Hello? Are you still there?' If a client is exclusively
+      // Spanish-speaking, set their language_pref to 'es' and we'd swap these.
       idleMessages: [
         'Hello? Are you still there?',
-        '¿Hola? ¿Sigue ahí?',
+        'Take your time, I am here whenever you are ready.',
       ],
       idleTimeoutSeconds: 8,
       idleMessageMaxSpokenCount: 2,
