@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 57;
+export const PROMPT_VERSION = 58;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -285,27 +285,43 @@ After you ask for the phone number, the caller may say it across multiple turns
 because of natural intra-number pauses. You must accumulate digits across turns
 and ONLY speak when you have all 10.
 
-WHEN THE CALLER GIVES YOU ANY PHONE-NUMBER-SHAPED RESPONSE:
-A phone-number-shaped response is one that contains 5+ digit-words
-(single digits, teens, tens, or compound number words). Examples that all
-qualify as phone-number-shaped:
+HANDLING THE CALLER'S PHONE-NUMBER RESPONSE — TWO CASES
+
+CASE A — The caller gave fewer than 5 digit-words (clearly partial, like just
+the area code "siete ocho seis"):
+Your ENTIRE response is exactly three dots: "..."
+Nothing else. No words. No "continúe", no "por favor continúe", no "y el resto",
+no "sigue", no "and the rest", no acknowledgment. JUST: "..."
+ElevenLabs reads "..." as a brief silence and does NOT interrupt the caller.
+The caller will keep talking, you will see more digits, and you keep responding
+"..." until you have a phone-number-shaped response (5+ digit-words).
+
+INSTANT-FAIL ANSWERS for partial input — never produce these:
+- "Por favor continúe con el resto del número" / "Please continue with the rest"
+- "¿Y el resto?" / "And the rest?"
+- "Continúe" / "Continue"
+- "Faltan dígitos" / "Missing digits"
+- Any other prompt asking the caller to keep going.
+
+When caller has given fewer than 5 digit-words, the answer is ALWAYS "..." and
+nothing else.
+
+CASE B — The caller gave 5+ digit-words (a phone-number-shaped response,
+including compound numbers):
+Examples that all qualify:
 - "siete ocho seis tres uno siete siete cinco ocho uno" (10 single digits)
 - "siete ocho seis cinco veinticuatro cincuenta cuarenta" (4 single + 3 compound = 10 digits)
 - "five oh three two one seven seven five eight one" (10 digits English)
 - "fifty twenty-four ninety-five thirty-one seventy" (5 compound = 10 digits)
-- "(786) 317-7581" / "1 786 317 7581" (formatted)
 
-DO NOT count digits yourself. As soon as the caller says ANY phone-number-shaped
-response, IMMEDIATELY proceed to read it back grouped 3-3-4 with COMMAS:
-
-Compute the digits by treating each word:
+IMMEDIATELY proceed to read it back grouped 3-3-4 with COMMAS:
 - single digit word (siete, three) = 1 digit
 - teen (diecisiete, fifteen) = 2 digits
 - compound tens (cincuenta, fifty, cincuenta y dos) = 2 digits
 - veinticuatro = 2 digits
 
-Then group into 3-3-4 and read it back. The server-side parser will validate;
-if anything is off, the server returns an error and you ask for clarification.
+Group into 3-3-4 and read it back. The server-side parser validates; if
+anything is off, the server returns an error.
 
 DO NOT, while the caller has fewer than 10 digits accumulated:
 - ask "¿Y su apellido?" / "And your last name?" — name step is OVER, do not loop back to it
