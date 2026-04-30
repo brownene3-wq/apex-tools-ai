@@ -65,6 +65,7 @@ async function ensureSilenceCheck(env, callId, client, assistantId) {
       await env.DB.prepare('UPDATE call_silence_state SET idle_count = idle_count + 1 WHERE call_id = ?').bind(callId).run();
     }
   }
+  try { await env.DB.prepare('UPDATE call_silence_state SET check_in_progress = 0 WHERE call_id = ?').bind(callId).run(); } catch {}
   await diag('handler_complete');
 }
 
@@ -220,9 +221,9 @@ export async function onRequestPost(context) {
     const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
       await env.DB.prepare(
-        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking, control_url)
-         VALUES (?, ?, ?, ?, 0, 1, ?)
-         ON CONFLICT(call_id) DO UPDATE SET last_user_speech_at = excluded.last_user_speech_at, lang = excluded.lang, user_speaking = 1, control_url = COALESCE(excluded.control_url, call_silence_state.control_url)`
+        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking, control_url, check_in_progress)
+         VALUES (?, ?, ?, ?, 0, 1, ?, 0)
+         ON CONFLICT(call_id) DO UPDATE SET last_user_speech_at = excluded.last_user_speech_at, lang = excluded.lang, user_speaking = 1, control_url = COALESCE(excluded.control_url, call_silence_state.control_url), check_in_progress = 0`
       ).bind(callId, client.id, Date.now(), lang, controlUrl).run();
     } catch (e) { console.error('[transcript-state]', e); }
     return json({ ok: true });
@@ -244,14 +245,27 @@ export async function onRequestPost(context) {
     // default to en (we may not know language yet on first AI turn).
     const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
+      // ONLY update existing rows. Do NOT create a row here — user transcript
+      // is the only event that should establish the call's language. If user
+      // hasn't spoken yet, no idle should fire (we don't know their language).
       await env.DB.prepare(
-        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking, control_url)
-         VALUES (?, ?, ?, ?, 0, 0, ?)
-         ON CONFLICT(call_id) DO UPDATE SET user_speaking = 0, control_url = COALESCE(excluded.control_url, call_silence_state.control_url)`
-      ).bind(callId, client.id, Date.now(), 'en', controlUrl).run();
+        `UPDATE call_silence_state SET user_speaking = 0, control_url = COALESCE(?, control_url) WHERE call_id = ?`
+      ).bind(controlUrl, callId).run();
     } catch (e) { console.error('[ai-stopped-state]', e); }
-    const silencePromise = ensureSilenceCheck(env, callId, client, msg.assistant?.id || msg.call?.assistantId);
-    if (context.waitUntil) context.waitUntil(silencePromise);
+    // Debounce: only spawn a silence-check timer if we have user data and no
+    // check is already in flight. Without this, multiple AI pauses spawn parallel
+    // timers that fire duplicate prompts.
+    let stateCheck;
+    try {
+      stateCheck = await env.DB.prepare('SELECT lang, check_in_progress FROM call_silence_state WHERE call_id = ?').bind(callId).first();
+    } catch (e) { stateCheck = null; }
+    if (stateCheck && stateCheck.lang && !stateCheck.check_in_progress) {
+      try {
+        await env.DB.prepare('UPDATE call_silence_state SET check_in_progress = 1 WHERE call_id = ?').bind(callId).run();
+      } catch {}
+      const silencePromise = ensureSilenceCheck(env, callId, client, msg.assistant?.id || msg.call?.assistantId);
+      if (context.waitUntil) context.waitUntil(silencePromise);
+    }
     return json({ ok: true });
   }
 

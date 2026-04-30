@@ -19,6 +19,7 @@ const ensureSchemaUpToDate = async (env) => {
       control_url TEXT
     )`,
     "ALTER TABLE call_silence_state ADD COLUMN control_url TEXT",
+    "ALTER TABLE call_silence_state ADD COLUMN check_in_progress INTEGER DEFAULT 0",
   ];
   for (const stmt of safeAdds) {
     try { await env.DB.prepare(stmt).run(); } catch (e) { /* column exists or table missing — ignore */ }
