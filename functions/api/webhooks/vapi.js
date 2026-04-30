@@ -57,7 +57,8 @@ async function ensureSilenceCheck(env, callId, client, assistantId) {
 }
 
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(context) {
+  const { request, env } = context;
   let body;
   try { body = await request.json(); } catch { return json({ ok: true }); }
 
@@ -227,7 +228,8 @@ export async function onRequestPost({ request, env }) {
       const ctx = arguments[0]; // can't read here; use a simple background schedule
       // Cloudflare Workers / Pages support waitUntil via the parent context arg.
       // We can call it by capturing context above — implemented via ensureSilenceCheck below.
-      ensureSilenceCheck(env, callId, client, msg.assistant?.id || msg.call?.assistantId);
+      const silencePromise = ensureSilenceCheck(env, callId, client, msg.assistant?.id || msg.call?.assistantId);
+      if (context.waitUntil) context.waitUntil(silencePromise);
       return json({ ok: true });
     }
     return json({ ok: true });

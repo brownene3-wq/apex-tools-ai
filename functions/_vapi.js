@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 43;
+export const PROMPT_VERSION = 44;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -603,7 +603,19 @@ export const syncAssistant = async (env, client) => {
       stability: 0.65,
       similarityBoost: 0.85,
     },
-    server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
+    server: {
+      url: 'https://apextoolsai.com/api/webhooks/vapi',
+      // Tell Vapi which event types to POST to our webhook. speech-update is
+      // critical for our custom language-aware silence handler.
+    },
+    serverMessages: [
+      'end-of-call-report',
+      'function-call',
+      'tool-calls',
+      'speech-update',
+      'transcript',
+      'status-update',
+    ],
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
       // Even longer wait — phone-number entry needs the AI to be very patient.
