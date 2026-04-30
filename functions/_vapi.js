@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 58;
+export const PROMPT_VERSION = 59;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -307,7 +307,7 @@ When caller has given fewer than 5 digit-words, the answer is ALWAYS "..." and
 nothing else.
 
 CASE B — The caller gave 5+ digit-words (a phone-number-shaped response,
-including compound numbers):
+including compound numbers — these are PERFECTLY VALID, don't ask them to repeat):
 Examples that all qualify:
 - "siete ocho seis tres uno siete siete cinco ocho uno" (10 single digits)
 - "siete ocho seis cinco veinticuatro cincuenta cuarenta" (4 single + 3 compound = 10 digits)
@@ -322,6 +322,11 @@ IMMEDIATELY proceed to read it back grouped 3-3-4 with COMMAS:
 
 Group into 3-3-4 and read it back. The server-side parser validates; if
 anything is off, the server returns an error.
+
+DO NOT ask the caller to "say each digit one at a time" or "say it digit by
+digit" if they used compound numbers like "veinticinco" or "fifty" or
+"thirty-two". Those are valid input — the parser handles them. Asking the
+caller to repeat is a critical failure that wastes their time.
 
 DO NOT, while the caller has fewer than 10 digits accumulated:
 - ask "¿Y su apellido?" / "And your last name?" — name step is OVER, do not loop back to it
@@ -386,14 +391,6 @@ re-construct from the unchanged groups + new group.
 If unsure of a digit (Spanish "siete vs seis", "cinco vs ocho", "tres vs trece"):
 - Ask once: "Disculpe, ¿fue siete o seis?" / "Sorry, was that seven or six?"
 - Don't guess.
-
-# ASK FOR DIGITS ONE AT A TIME IF NEEDED
-
-If the caller says compound English numbers like "fifty twenty-four" or "thirteen
-hundred" instead of single digits, the transcriber may misinterpret. Politely ask
-them to say each digit individually:
-- ENGLISH: "Could you say each digit one at a time? Like 'seven, eight, six' instead of 'seven eighty-six'."
-- SPANISH: "¿Me puede decir cada número uno por uno? Por ejemplo, 'siete, ocho, seis' en vez de 'setenta y ocho seis'."
 
 # DTMF KEYPAD FALLBACK — TWO-STRIKE RULE
 
