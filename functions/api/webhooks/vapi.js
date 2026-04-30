@@ -115,10 +115,11 @@ async function ensureSilenceCheck(env, callId, client, assistantId) {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   const idleTimeoutMs = 8000;
   const maxIdle = 2;
+  const spawnedAt = Date.now();
   const diag = async (event, data = {}) => {
     try { await env.DB.prepare("INSERT INTO usage_events (client_id, event_type, event_data_json, created_at) VALUES (?, ?, ?, ?)").bind(client.id, 'silence_diag', JSON.stringify({ event, callId, ...data }), Date.now()).run(); } catch {}
   };
-  await diag('handler_entered');
+  await diag('handler_entered', { spawnedAt });
 
   for (let i = 0; i < maxIdle; i++) {
     await diag('waiting', { iteration: i });
@@ -137,6 +138,12 @@ async function ensureSilenceCheck(env, callId, client, assistantId) {
     if (state.hung_up) { await diag('aborted_hung_up'); return; }
     if (state.user_speaking) { await diag('aborted_user_speaking'); return; }
     if (state.idle_count >= maxIdle) { await diag('aborted_max_idle'); return; }
+    // Stale-handler protection: if user spoke AFTER this handler was spawned,
+    // a newer handler already covers the current silence period. Abort.
+    if (state.last_user_speech_at && state.last_user_speech_at > spawnedAt) {
+      await diag('aborted_stale_handler', { spawnedAt, last_user_speech_at: state.last_user_speech_at });
+      return;
+    }
 
     const lang = state.lang || 'en';
     const prompts = [
