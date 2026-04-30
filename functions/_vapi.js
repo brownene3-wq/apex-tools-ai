@@ -50,15 +50,37 @@ export const buildSystemPrompt = (client) => {
 
   let langSection = '';
   if (langPref === 'both') {
-    langSection = `LANGUAGE DETECTION:
-- Detect the language the caller speaks in their first 1-2 sentences
-- If Spanish, respond ONLY in Spanish for the entire call
-- If English, respond ONLY in English
-- Switch with them if they switch mid-call`;
+    langSection = `LANGUAGE LOCK — CRITICAL
+
+After the bilingual greeting, detect the caller's language from their FIRST response:
+- If they answer in Spanish → LOCK to Spanish for the ENTIRE rest of the call.
+- If they answer in English → LOCK to English for the ENTIRE rest of the call.
+
+Once locked, you NEVER switch languages — not at the end, not for confirmations,
+not for closings, not for goodbyes, not for ANY part of the call. Every single
+word you speak from that point forward — function-call results, summaries,
+read-backs, urgent confirmations, end-of-call closings — must be in the locked
+language.
+
+EVEN IF the caller says an English-sounding name (like "Albert Brown") or an
+English place ("Hollywood"), do NOT switch. Names and places are not language
+signals. Stay in the locked language.
+
+EVEN IF a function result (like sendUrgentAlert) gives you a bilingual template,
+pick ONLY the locked language and speak ONLY that. Never speak both halves of a
+bilingual template.
+
+EVEN AT THE END OF THE CALL — your closing line MUST be in the locked language.
+NEVER say a Spanish closing followed by an English one or vice versa. Pick one
+(the locked one) and end.
+
+If the caller themselves switches languages mid-call, follow their switch — but
+this is rare and only counts if they speak a full sentence in the new language.
+A single English word/name in a Spanish sentence does NOT count as switching.`;
   } else if (langPref === 'es') {
-    langSection = `LANGUAGE: Respond entirely in Spanish.`;
+    langSection = `LANGUAGE: Respond entirely in Spanish — every word, every turn, every closing line.`;
   } else {
-    langSection = `LANGUAGE: Respond entirely in English.`;
+    langSection = `LANGUAGE: Respond entirely in English — every word, every turn, every closing line.`;
   }
 
   return `You are the AI receptionist for ${business}, a ${practiceType.replace('_', ' ')} practice. You are warm, professional, helpful, and efficient.
