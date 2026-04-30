@@ -196,50 +196,44 @@ export async function onRequestPost(context) {
     return json({ ok: true, call_logged: true });
   }
 
-  // ---- SPEECH-UPDATE: track silence and fire language-aware idle prompts ----
-  // Vapi's static idleMessages don't know the call's locked language. We
-  // disable those (set to []) and handle silence here with a custom timer:
-  // when the user stops talking, schedule a delayed check; if still silent,
-  // send a 'still there?' prompt in the language matching the most recent
-  // user utterance.
-  if (type === 'speech-update') {
+  // ---- TRANSCRIPT (role: user) ----
+  // Vapi only sends 'speech-update' for the AI's own voice activity, not for
+  // the user. The user's speech is tracked via transcript events. So when a
+  // user transcript arrives, we mark user_speaking and cancel any pending idle.
+  if (type === 'transcript' && msg.role === 'user') {
     const callId = msg.call?.id;
-    const role = msg.role;        // 'user' | 'assistant'
-    const status = msg.status;    // 'started' | 'stopped'
-    if (!callId || role !== 'user') return json({ ok: true });
+    if (!callId) return json({ ok: true });
+    // Detect language from the user's actual utterance content
+    const utterance = msg.transcript || msg.transcriptText || '';
+    const lang = /[áéíóúñ¿¡]|\bhola\b|\bgracias\b|\bpor favor\b|\bsí\b|\bcita\b|\bdolor\b|\bsangrado\b|\bquiero\b|\bnecesito\b/i.test(utterance) ? 'es' : 'en';
+    try {
+      await env.DB.prepare(
+        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking)
+         VALUES (?, ?, ?, ?, 0, 1)
+         ON CONFLICT(call_id) DO UPDATE SET last_user_speech_at = excluded.last_user_speech_at, lang = excluded.lang, user_speaking = 1`
+      ).bind(callId, client.id, Date.now(), lang).run();
+    } catch (e) { console.error('[transcript-state]', e); }
+    return json({ ok: true });
+  }
 
-    if (status === 'started') {
-      // User started speaking — clear any pending idle from server-side state.
-      try {
-        await env.DB.prepare(
-          "UPDATE call_silence_state SET user_speaking = 1, last_user_speech_at = ? WHERE call_id = ?"
-        ).bind(Date.now(), callId).run();
-      } catch (e) { /* row may not exist yet */ }
-      return json({ ok: true });
-    }
-
-    if (status === 'stopped') {
-      // User stopped speaking — record state and schedule a silence check.
-      const transcript = msg.artifact?.transcript || msg.transcript || '';
-      const lastTurn = transcript.split('\n').filter(l => l.startsWith('User:')).slice(-1)[0] || '';
-      const lang = /[áéíóúñ¿¡]|hola|gracias|por favor|sí|cita|dolor|sangrado/i.test(lastTurn) ? 'es' : 'en';
-
-      try {
-        await env.DB.prepare(
-          `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking)
-           VALUES (?, ?, ?, ?, 0, 0)
-           ON CONFLICT(call_id) DO UPDATE SET last_user_speech_at = excluded.last_user_speech_at, lang = excluded.lang, user_speaking = 0`
-        ).bind(callId, client.id, Date.now(), lang).run();
-      } catch (e) { console.error('[silence-state-insert]', e); }
-
-      // Schedule a silence check for 8s from now.
-      const ctx = arguments[0]; // can't read here; use a simple background schedule
-      // Cloudflare Workers / Pages support waitUntil via the parent context arg.
-      // We can call it by capturing context above — implemented via ensureSilenceCheck below.
-      const silencePromise = ensureSilenceCheck(env, callId, client, msg.assistant?.id || msg.call?.assistantId);
-      if (context.waitUntil) context.waitUntil(silencePromise);
-      return json({ ok: true });
-    }
+  // ---- SPEECH-UPDATE: AI just stopped talking, schedule silence check ----
+  // We only care about role:assistant status:stopped — that's when the AI has
+  // finished its turn and the user should respond. If the user doesn't speak
+  // (no user transcript arrives) within idleTimeoutSeconds, fire idle prompt.
+  if (type === 'speech-update' && msg.role === 'assistant' && msg.status === 'stopped') {
+    const callId = msg.call?.id;
+    if (!callId) return json({ ok: true });
+    // Mark user_speaking=0 so the silence check can run. Use existing lang or
+    // default to en (we may not know language yet on first AI turn).
+    try {
+      await env.DB.prepare(
+        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking)
+         VALUES (?, ?, ?, ?, 0, 0)
+         ON CONFLICT(call_id) DO UPDATE SET user_speaking = 0`
+      ).bind(callId, client.id, Date.now(), 'en').run();
+    } catch (e) { console.error('[ai-stopped-state]', e); }
+    const silencePromise = ensureSilenceCheck(env, callId, client, msg.assistant?.id || msg.call?.assistantId);
+    if (context.waitUntil) context.waitUntil(silencePromise);
     return json({ ok: true });
   }
 
