@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 24;
+export const PROMPT_VERSION = 25;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -620,9 +620,12 @@ export const syncAssistant = async (env, client) => {
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
     // noise or echo bleed was tripping it and chopping the AI's TTS.
     stopSpeakingPlan: {
+      // Vapi caps voiceSeconds at 0.5. To still reduce choppiness, we lean on
+      // numWords (require 5 confirmed user words before stopping AI) and shorter
+      // backoff so resumes sound continuous rather than pausing.
       numWords: 5,
-      voiceSeconds: 0.8,
-      backoffSeconds: 0.6,
+      voiceSeconds: 0.5,
+      backoffSeconds: 0.4,
     },
     silenceTimeoutSeconds: 90,
     messagePlan: {
