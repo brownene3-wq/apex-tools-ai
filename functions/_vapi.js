@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 37;
+export const PROMPT_VERSION = 38;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -623,11 +623,17 @@ export const syncAssistant = async (env, client) => {
       voiceSeconds: 0.5,
       backoffSeconds: 0.4,
     },
-    silenceTimeoutSeconds: 90,
+    // After 2 idle messages × 20s intervals + this timeout, the call ends.
+    // 25s here means hangup ~10-15s after the last idle prompt finishes.
+    silenceTimeoutSeconds: 25,
     messagePlan: {
+      // Short Spanish-only prompts — bilingual prompts read both languages back
+      // to back which felt repetitive. Spanish speakers in South Florida are
+      // the primary at-risk audience for missing a prompt; English speakers
+      // understand '¿Hola?' fine.
       idleMessages: [
-        '¿Sigue ahí? — Are you still there?',
-        'Tómese su tiempo, lo escucho. — Take your time, I am listening.',
+        '¿Hola? ¿Sigue ahí?',
+        'Tómese su tiempo, lo escucho.',
       ],
       idleTimeoutSeconds: 20,
       idleMessageMaxSpokenCount: 2,
