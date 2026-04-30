@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 29;
+export const PROMPT_VERSION = 30;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -596,23 +596,17 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      provider: '11labs',
-      voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
-      // eleven_turbo_v2_5 is designed for low-latency streaming over phone
-      // networks. Replaces eleven_multilingual_v2 which had chronic buffering
-      // hiccups during streaming. Still bilingual (Spanish + English).
-      model: 'eleven_turbo_v2_5',
-      // Higher stability = more consistent audio across chunks. Phone audio
-      // benefits from consistency more than expressiveness.
-      stability: 0.75,
-      similarityBoost: 0.85,
-      style: 0,
-      useSpeakerBoost: true,
-      chunkPlan: {
-        enabled: true,
-        minCharacters: 30,
-        punctuationBoundaries: ['.', '?', '!'],
-      },
+      // Switched ElevenLabs -> Cartesia. ElevenLabs streaming was producing
+      // chronic mid-phrase breakups even on their newer turbo model. Cartesia
+      // Sonic-2 is purpose-built for sub-200ms streaming over phone networks
+      // and is what most serious voice-AI deployments use for production calls.
+      provider: 'cartesia',
+      // 'Friendly Reading Lady' — warm professional female, the closest match
+      // to ElevenLabs Jessica's tone. Override per-client via client.voice_id.
+      voiceId: client.voice_id || 'a0e99841-438c-4a64-b679-ae501e7d6091',
+      // sonic-2 is the latest, supports English + Spanish bilingual.
+      model: 'sonic-2',
+      // Cartesia handles chunking natively — no need for Vapi-level chunkPlan.
     },
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
