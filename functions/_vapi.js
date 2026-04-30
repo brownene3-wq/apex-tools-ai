@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 26;
+export const PROMPT_VERSION = 27;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -588,29 +588,26 @@ export const syncAssistant = async (env, client) => {
       smartFormat: false,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero'],
     },
-    // Background-denoising removes hum/static AND helps suppress AI-voice echo
-    // bleed-through that was being transcribed as user input.
-    backgroundDenoisingEnabled: true,
+    // backgroundDenoisingEnabled was producing audible static/artifacts in the
+    // AI's output. Echo bleed is already handled at the prompt layer (ECHO
+    // HANDLING section) — no need for transcriber-level denoising.
+    backgroundDenoisingEnabled: false,
     voice: {
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
       model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
-      // Lower latency optimization = cleaner end-of-phrase audio. Vapi defaults
-      // were aggressive (3-4) which compressed phrase tails. 1 keeps almost-
-      // best quality with only a small latency hit.
-      optimizeStreamingLatency: 1,
+      // Let Vapi/ElevenLabs use their default streaming latency settings —
+      // overriding made the audio worse (more breakup, not less).
+      // chunkPlan minCharacters reduced 80 -> 30 — large chunks meant Vapi
+      // batched too much before each TTS request causing lumpy streaming.
       chunkPlan: {
         enabled: true,
-        minCharacters: 80,
+        minCharacters: 30,
         punctuationBoundaries: ['.', '?', '!'],
-        formatPlan: { enabled: true },
       },
     },
-    // Premium positioning: NO background office noise. Clean, focused audio
-    // beats fake ambiance for dental/med-spa clients.
-    backgroundSound: 'off',
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
