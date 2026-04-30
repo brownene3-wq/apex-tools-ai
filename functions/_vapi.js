@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 50;
+export const PROMPT_VERSION = 51;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -249,6 +249,13 @@ WRONG patientPhone formats — never pass these:
 - "7863177581 7863177581" (doubled)
 ALWAYS pass digits ONCE, as a 10-character numeric string.
 
+11-DIGIT US NUMBERS WITH LEADING 1:
+Many US callers say their number with a leading "1" (the country code), like
+"one, seven eight six, three one seven, seven five eight one" — that's 11
+digits. Strip the leading 1. Pass only the last 10 digits.
+- WRONG: patientPhone: "17863177581"
+- RIGHT: patientPhone: "7863177581"
+
 # PHONE NUMBER READ-BACK — CRITICAL TURN RULES
 
 After you ask for the phone number, the caller may say it across multiple turns
@@ -256,17 +263,15 @@ because of natural intra-number pauses. You must accumulate digits across turns
 and ONLY speak when you have all 10.
 
 WHEN THE TOTAL ACCUMULATED DIGITS FROM THE CALLER IS LESS THAN 10:
-Your response MUST be EXACTLY this — a single literal empty string with zero
-characters: ""
+Your response MUST be EXACTLY this single character: " " (just one space, no other text).
 
-Nothing else. No words. No "Ajá", no "Mhm", no "continúe", no acknowledgment of
-any kind. Just an empty response. The caller is mid-number; speaking would
-interrupt them. An empty response makes the system stay silent and listen for
-more digits. The caller will keep talking; the system will hand you the turn
-again with more digits accumulated.
+That's it. A single space. The TTS will speak it as a brief inaudible pause.
+The caller is mid-number; saying anything would interrupt them. A space-only
+response keeps the channel open and lets them keep talking. The system will
+hand you the turn again with more digits accumulated.
 
 Repeat this rule for EVERY turn until accumulated digits = 10. Do not waver.
-An empty string is the right answer. Saying anything at all would interrupt the
+A single space is the right answer. Saying anything else would interrupt the
 caller mid-number and is a critical failure.
 
 DO NOT, while the caller has fewer than 10 digits accumulated:
@@ -293,6 +298,25 @@ If wrong, ask which group is wrong, re-read just that group, confirm.
 If unsure of a digit (Spanish "siete vs seis", "cinco vs ocho", "tres vs trece"):
 - Ask once: "Disculpe, ¿fue siete o seis?" / "Sorry, was that seven or six?"
 - Don't guess.
+
+# ASK FOR DIGITS ONE AT A TIME IF NEEDED
+
+If the caller says compound English numbers like "fifty twenty-four" or "thirteen
+hundred" instead of single digits, the transcriber may misinterpret. Politely ask
+them to say each digit individually:
+- ENGLISH: "Could you say each digit one at a time? Like 'seven, eight, six' instead of 'seven eighty-six'."
+- SPANISH: "¿Me puede decir cada número uno por uno? Por ejemplo, 'siete, ocho, seis' en vez de 'setenta y ocho seis'."
+
+# DTMF KEYPAD FALLBACK — TWO-STRIKE RULE
+
+If you have asked the caller to repeat their phone number TWICE and STILL don't
+have a confirmed valid 10-digit number, switch to DTMF (keypad) input. Say:
+- ENGLISH: "I'm having trouble catching the number on this connection. Could you type your phone number on your keypad? When you're done, press the pound key."
+- SPANISH: "Tengo problemas escuchando el número. ¿Puede marcar su teléfono en el teclado? Cuando termine, marque la tecla de número."
+
+The caller will press digits on their phone keypad. The system will receive
+those digits as a single string and you can confirm them with a normal
+read-back.
 
 # HANDLING SILENCE
 
@@ -630,7 +654,7 @@ export const syncAssistant = async (env, client) => {
       numerals: true,
       endpointing: 500,
       smartFormat: false,
-      keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero'],
+      keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
     },
     // backgroundDenoisingEnabled was producing audible static/artifacts in the
     // AI's output. Echo bleed is already handled at the prompt layer (ECHO
@@ -648,6 +672,14 @@ export const syncAssistant = async (env, client) => {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
       // Tell Vapi which event types to POST to our webhook. speech-update is
       // critical for our custom language-aware silence handler.
+    },
+    // DTMF keypad input — when the AI prompts after 2 failed attempts, the
+    // caller's keypad presses come through as a contiguous string of digits
+    // ending with # (terminator). Vapi delivers these as a single transcript.
+    keypadInputPlan: {
+      enabled: true,
+      timeoutSeconds: 8,
+      delimiters: ['#'],
     },
     serverMessages: [
       'end-of-call-report',
