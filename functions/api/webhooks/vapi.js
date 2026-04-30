@@ -5,6 +5,109 @@ import { json, newId, logUsage, sendSMS, sendEmail, escapeHtml } from '../../_li
 import { pushAppointmentToAll } from '../../_integrations.js';
 import { ensureAssistantSynced } from '../../_vapi.js';
 
+// Comprehensive phone-number parser. Handles every natural way a US caller
+// might give their 10-digit number — including compound numbers, pairs,
+// mixed English/Spanish, leading 1 country code, and pre-formatted strings.
+// Returns 10-digit string or null if not parseable.
+function parsePhoneNumber(input) {
+  if (!input) return null;
+  let s = String(input).toLowerCase()
+    .replace(/[áéíóú]/g, c => ({á:'a',é:'e',í:'i',ó:'o',ú:'u'}[c] || c))
+    .replace(/ñ/g,'n')
+    .replace(/[¿¡?!.]/g, ' ')
+    .replace(/[-–—_]/g, ' ')
+    .replace(/[(),]/g, ' ');
+
+  // Single digit words → digit
+  const ones = {
+    'zero':0,'oh':0,'cero':0,'o':0,
+    'one':1,'uno':1,'una':1,
+    'two':2,'dos':2,
+    'three':3,'tres':3,
+    'four':4,'cuatro':4,
+    'five':5,'cinco':5,
+    'six':6,'seis':6,
+    'seven':7,'siete':7,
+    'eight':8,'ocho':8,
+    'nine':9,'nueve':9,
+  };
+  // Teens
+  const teens = {
+    'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,
+    'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
+    'diez':10,'once':11,'doce':12,'trece':13,'catorce':14,'quince':15,
+    'dieciseis':16,'diecisiete':17,'dieciocho':18,'diecinueve':19,
+  };
+  // Tens
+  const tens = {
+    'twenty':20,'thirty':30,'forty':40,'fourty':40,'fifty':50,
+    'sixty':60,'seventy':70,'eighty':80,'ninety':90,
+    'veinte':20,'treinta':30,'cuarenta':40,'cincuenta':50,
+    'sesenta':60,'setenta':70,'ochenta':80,'noventa':90,
+  };
+  // Spanish "veinti..." compound shortcuts
+  const veintis = {
+    'veintiuno':21,'veintidos':22,'veintitres':23,'veinticuatro':24,
+    'veinticinco':25,'veintiseis':26,'veintisiete':27,'veintiocho':28,'veintinueve':29,
+  };
+  // Hundred
+  const hundredWord = /^(hundred|cien|ciento|cientos)$/;
+  // "and" / "y" connector
+  const connector = /^(and|y)$/;
+
+  // First pass: tokenize and convert each token to digit string
+  const tokens = s.split(/\s+/).filter(Boolean);
+  let digits = '';
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    // pure digits already in token
+    if (/^[0-9]+$/.test(t)) { digits += t; continue; }
+    // "veinticuatro" type Spanish compounds
+    if (veintis[t] !== undefined) { digits += String(veintis[t]).padStart(2,'0'); continue; }
+    // teens 10-19
+    if (teens[t] !== undefined) { digits += String(teens[t]).padStart(2,'0'); continue; }
+    // tens (twenty, thirty, ...)
+    if (tens[t] !== undefined) {
+      const tensVal = tens[t];
+      // look ahead — possibly followed by "and"/"y" then a single digit
+      let next = tokens[i+1];
+      if (next && connector.test(next)) { i++; next = tokens[i+1]; }
+      if (next && ones[next] !== undefined) {
+        digits += String(tensVal + ones[next]).padStart(2,'0');
+        i++;
+      } else {
+        digits += String(tensVal).padStart(2,'0');
+      }
+      continue;
+    }
+    // single digits
+    if (ones[t] !== undefined) { digits += String(ones[t]); continue; }
+    // hundred word — multiplier (e.g. "two hundred" = "200")
+    if (hundredWord.test(t)) {
+      // back-multiply: take the last digit and turn it into N00
+      if (digits.length > 0) {
+        const last = digits.slice(-1);
+        digits = digits.slice(0,-1) + last + '00';
+      }
+      continue;
+    }
+    // unknown token — skip
+  }
+
+  if (!digits) return null;
+
+  // Strip leading 1 if exactly 11 digits (US country code)
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+
+  // If duplicated (e.g. AI passed it twice), take first 10
+  if (digits.length > 10 && digits.length % 10 === 0) digits = digits.slice(0, 10);
+  if (digits.length > 10) digits = digits.slice(-10); // last-resort: take last 10
+
+  return digits.length === 10 ? digits : null;
+}
+
+
+
 // Send the AI a language-matched check-in via Vapi's say API after a delay.
 // This replaces Vapi's static idleMessages so the prompt language matches
 // the call language (which Vapi can't do natively).
@@ -282,34 +385,9 @@ export async function onRequestPost(context) {
       const args = typeof params === 'string' ? JSON.parse(params) : params;
 
       if (name === 'bookAppointment') {
-        // Server-side data quality gate — reject bookings without a usable callback phone
-        // Convert Spanish/English digit words to digits as a safety net in case the AI passes spoken words
-        const wordToDigit = {
-          'cero': '0', 'zero': '0', 'oh': '0',
-          'uno': '1', 'una': '1', 'one': '1',
-          'dos': '2', 'two': '2',
-          'tres': '3', 'three': '3',
-          'cuatro': '4', 'four': '4',
-          'cinco': '5', 'five': '5',
-          'seis': '6', 'six': '6',
-          'siete': '7', 'seven': '7',
-          'ocho': '8', 'eight': '8',
-          'nueve': '9', 'nine': '9',
-        };
-        let rawPhone = String(args.patientPhone || '');
-        // First, replace any digit-words with digits
-        rawPhone = rawPhone.toLowerCase()
-          .replace(/[áéíóúñ]/g, (c) => ({á:'a',é:'e',í:'i',ó:'o',ú:'u',ñ:'n'}[c] || c))
-          .replace(/\b(cero|zero|oh|uno|una|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine)\b/g,
-                   (m) => wordToDigit[m] || m);
-        let digits = rawPhone.replace(/\D/g, '');
-        // If we got more than 15 digits, the AI may have passed the number doubled — take the FIRST 10
-        if (digits.length > 15 && digits.length % 10 === 0) {
-          digits = digits.slice(0, 10);
-        }
-        // Strip leading 1 (US country code) if present and gives us exactly 11
-        if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
-        const validPhone = digits.length === 10;
+        // Comprehensive phone parsing — handles any natural format
+        const digits = parsePhoneNumber(args.patientPhone);
+        const validPhone = digits !== null;
         const validName = (args.patientName || '').trim().length >= 2;
         if (!validPhone || !validName) {
           await logUsage(env, client.id, 'appointment_rejected_bad_data', { reason: !validPhone ? 'invalid_phone' : 'invalid_name', got_phone: rawPhone, got_name: args.patientName });
@@ -378,28 +456,9 @@ export async function onRequestPost(context) {
         const callerName = args.patientName || '';
         const businessName = client.business_name || 'your practice';
 
-        // ---- Phone-digit normalization (same gate as bookAppointment) ----
-        const wordToDigit = {
-          'cero':'0','zero':'0','oh':'0',
-          'uno':'1','una':'1','one':'1',
-          'dos':'2','two':'2',
-          'tres':'3','three':'3',
-          'cuatro':'4','four':'4',
-          'cinco':'5','five':'5',
-          'seis':'6','six':'6',
-          'siete':'7','seven':'7',
-          'ocho':'8','eight':'8',
-          'nueve':'9','nine':'9',
-        };
-        let rawPhone = String(args.patientPhone || args.callerNumber || '');
-        rawPhone = rawPhone.toLowerCase()
-          .replace(/[áéíóúñ]/g, (c) => ({á:'a',é:'e',í:'i',ó:'o',ú:'u',ñ:'n'}[c] || c))
-          .replace(/\b(cero|zero|oh|uno|una|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine)\b/g,
-                   (m) => wordToDigit[m] || m);
-        let digits = rawPhone.replace(/\D/g, '');
-        if (digits.length > 15 && digits.length % 10 === 0) digits = digits.slice(0, 10);
-        if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
-        const validPhone = digits.length === 10;
+        // Comprehensive phone parsing — handles any natural format
+        const digits = parsePhoneNumber(args.patientPhone || args.callerNumber);
+        const validPhone = digits !== null;
         const validName = (callerName || '').trim().length >= 2;
 
         // ---- Insert appointment row (status='urgent') if we have name + phone ----
