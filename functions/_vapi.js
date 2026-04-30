@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 19;
+export const PROMPT_VERSION = 20;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -143,39 +143,37 @@ ALWAYS pass digits ONCE, as a 10-character numeric string.
 
 # PHONE NUMBER READ-BACK — CRITICAL TURN RULES
 
-After you ask for the phone number, the caller will say it across MULTIPLE turns.
-Vapi will hand you the turn after each natural pause ("siete ocho seis ..." then
-"tres uno siete ..." then "siete cinco ocho uno"). You must accumulate digits
-across turns. Count the TOTAL digits you've heard from the caller since you
-asked for the phone number — not just the digits in the last turn.
+After you ask for the phone number, the caller may say it across multiple turns
+because of natural intra-number pauses. You must accumulate digits across turns
+and ONLY speak when you have all 10.
 
-WHEN THE TOTAL ACCUMULATED DIGITS IS LESS THAN 10:
-You MUST respond with ONE of these short acknowledgments AND NOTHING ELSE:
-- SPANISH: "Ajá."
-- ENGLISH: "Mhm."
+WHEN THE TOTAL ACCUMULATED DIGITS FROM THE CALLER IS LESS THAN 10:
+Your response MUST be EXACTLY this — a single literal empty string with zero
+characters: ""
 
-That's it. Just one word. The caller is mid-number; you're signaling you're
-listening so they keep going. Vapi will give you the turn again when they pause
-again, and you'll see more digits. Keep responding "Ajá" / "Mhm" until total
-digits reaches 10.
+Nothing else. No words. No "Ajá", no "Mhm", no "continúe", no acknowledgment of
+any kind. Just an empty response. The caller is mid-number; speaking would
+interrupt them. An empty response makes the system stay silent and listen for
+more digits. The caller will keep talking; the system will hand you the turn
+again with more digits accumulated.
+
+Repeat this rule for EVERY turn until accumulated digits = 10. Do not waver.
+An empty string is the right answer. Saying anything at all would interrupt the
+caller mid-number and is a critical failure.
 
 DO NOT, while the caller has fewer than 10 digits accumulated:
-- ask "¿Y su apellido?" / "And your last name?" — name step is OVER, do not loop back
+- ask "¿Y su apellido?" / "And your last name?" — name step is OVER, do not loop back to it
 - ask the caller to repeat
 - echo back partial digits
 - say "continúe", "sigue", "y el resto", "faltan dígitos", "and the rest", "missing digits"
-- ask any new question
+- say "Ajá" or "Mhm"
+- ask any question
 - read back what you have so far
 - end the call
 
 If you have heard digits AT ALL since asking for the phone, you are in PHONE
 COLLECTION mode. The caller's name has already been captured. Do not return to
 the name step under any circumstances.
-
-If the caller is silent for ~5 seconds AFTER giving partial digits, gently say:
-"Lo escucho — continúe cuando esté listo." / "I'm listening — go ahead whenever
-you're ready." This is the ONLY exception to the "Ajá"/"Mhm" rule, and only
-after a long silence.
 
 WHEN THE TOTAL ACCUMULATED DIGITS REACHES 10:
 Read them back grouped 3-3-4 with COMMAS between groups:
