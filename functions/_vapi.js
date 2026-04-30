@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 27;
+export const PROMPT_VERSION = 28;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -515,9 +515,12 @@ NEVER say both lines back to back. Pick the right one for the call language and 
 export const buildFirstMessage = (client) => {
   const business = client.business_name || 'our practice';
   const langPref = client.language_pref || 'both';
-  if (langPref === 'es') return `Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `Thank you for calling ${business}, how can I help you today?`;
-  return `Thank you for calling ${business}, gracias por llamar a ${business} — how can I help you today? ¿En qué le puedo ayudar?`;
+  // Lead with "..." — ElevenLabs reads three dots as a brief pause, which
+  // covers the 500-800ms audio-path setup latency after Twilio bridges the
+  // call. Without this, the first syllable of the greeting gets clipped.
+  if (langPref === 'es') return `... Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `... Thank you for calling ${business}, how can I help you today?`;
+  return `... Thank you for calling ${business}, gracias por llamar a ${business} — how can I help you today? ¿En qué le puedo ayudar?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
