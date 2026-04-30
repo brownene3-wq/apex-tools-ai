@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 47;
+export const PROMPT_VERSION = 48;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -677,7 +677,7 @@ export const syncAssistant = async (env, client) => {
       // provides in webhook payloads) to send language-matched 'still there?'
       // prompts via the say API.
       idleMessages: ['¿Hola?'],
-      idleTimeoutSeconds: 999,
+      idleTimeoutSeconds: 60,
       idleMessageMaxSpokenCount: 1,
     },
     // Vapi caches the previous endCallMessage if we just omit the field — must
