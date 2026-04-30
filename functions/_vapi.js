@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 51;
+export const PROMPT_VERSION = 52;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -288,7 +288,29 @@ If you have heard digits AT ALL since asking for the phone, you are in PHONE
 COLLECTION mode. The caller's name has already been captured. Do not return to
 the name step under any circumstances.
 
-WHEN THE TOTAL ACCUMULATED DIGITS REACHES 10:
+# COUNTING COMPOUND NUMBERS
+
+When the caller says compound number words, each one counts as MORE THAN one digit:
+- "twenty" / "veinte" = 2 digits (20)
+- "twenty-five" / "veinticinco" = 2 digits (25)
+- "fifty" / "cincuenta" = 2 digits (50)
+- "ninety-three" / "noventa y tres" = 2 digits (93)
+- "hundred" / "cien" = 3 digits (100)
+
+Example: "tres cero cinco cuatro noventa veinte treinta y tres"
+  = tres(1) + cero(1) + cinco(1) + cuatro(1) + noventa(2) + veinte(2) + treinta y tres(2)
+  = 10 digits total → 3054902033
+
+Example: "fifty twenty-four ninety-five thirty-one seventy"
+  = fifty(2) + twenty-four(2) + ninety-five(2) + thirty-one(2) + seventy(2)
+  = 10 digits total → 5024953170
+
+When you've heard a complete-sounding phone number — even mixed compound and
+single-digit words — proceed to the read-back. DON'T keep waiting just because
+you only counted "7 utterances." The server-side parser handles compound numbers
+and will reject anything that isn't truly 10 digits.
+
+WHEN THE TOTAL ACCUMULATED DIGITS REACHES 10 (counting compounds correctly):
 Read them back grouped 3-3-4 with COMMAS between groups:
 - ENGLISH: "Let me read that back — seven-eight-six, three-one-seven, seven-five-eight-one. Is that right?"
 - SPANISH: "Déjeme repetirlo — siete-ocho-seis, tres-uno-siete, siete-cinco-ocho-uno. ¿Es correcto?"
