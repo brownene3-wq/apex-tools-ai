@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 33;
+export const PROMPT_VERSION = 34;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -600,9 +600,10 @@ export const syncAssistant = async (env, client) => {
       // in their catalog, the one most production voice-AI deployments use when
       // they want "sounds like a real human."
       provider: '11labs',
-      // ElevenLabs 'Sarah' — confident, friendly, professional. Most US dental
-      // and medical receptionist deployments end up here. Warmer than Aria.
-      voiceId: client.voice_id || 'EXAVITQu4vr4xnSDxMaL',
+      // ElevenLabs 'Charlotte' — the most genuinely human-sounding female voice
+      // in their catalog. Casual, warm, conversational — used when the goal is
+      // 'callers can't tell it's AI.' Bilingual EN/ES on flash_v2_5.
+      voiceId: client.voice_id || 'XB0fDUnXU5powFXDhCwa',
       // eleven_flash_v2_5 is their newest streaming-optimized model — faster
       // and more reliable for phone calls than multilingual_v2 (which had
       // chronic buffering hiccups) and turbo_v2_5. Bilingual EN/ES.
@@ -610,9 +611,11 @@ export const syncAssistant = async (env, client) => {
       // Higher stability for phone-call consistency. Style at 0 keeps voice
       // steady (style >0 introduces emotional variance which breaks up over
       // phone audio).
-      stability: 0.75,
+      // Slightly lower stability lets Charlotte's natural conversational
+      // rhythm come through. 0.5 is the sweet spot for 'sounds human'.
+      stability: 0.5,
       similarityBoost: 0.85,
-      style: 0,
+      style: 0.3,
       useSpeakerBoost: true,
     },
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
