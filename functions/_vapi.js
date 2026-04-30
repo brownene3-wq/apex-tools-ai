@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 25;
+export const PROMPT_VERSION = 26;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -597,9 +597,10 @@ export const syncAssistant = async (env, client) => {
       model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
-      // Chunk text into LARGER pieces so words and phrases don't get cut in
-      // half across HTTP boundaries. Default is too small and produces audible
-      // gaps. 80-char min keeps a typical Spanish/English phrase intact.
+      // Lower latency optimization = cleaner end-of-phrase audio. Vapi defaults
+      // were aggressive (3-4) which compressed phrase tails. 1 keeps almost-
+      // best quality with only a small latency hit.
+      optimizeStreamingLatency: 1,
       chunkPlan: {
         enabled: true,
         minCharacters: 80,
@@ -607,6 +608,9 @@ export const syncAssistant = async (env, client) => {
         formatPlan: { enabled: true },
       },
     },
+    // Premium positioning: NO background office noise. Clean, focused audio
+    // beats fake ambiance for dental/med-spa clients.
+    backgroundSound: 'off',
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
