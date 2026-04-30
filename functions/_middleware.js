@@ -8,6 +8,15 @@ const ensureSchemaUpToDate = async (env) => {
   // Idempotent column adds — D1 throws if column already exists, ignore.
   const safeAdds = [
     "ALTER TABLE clients ADD COLUMN last_synced_prompt_version INTEGER DEFAULT 0",
+    `CREATE TABLE IF NOT EXISTS call_silence_state (
+      call_id TEXT PRIMARY KEY,
+      client_id TEXT,
+      last_user_speech_at INTEGER,
+      lang TEXT DEFAULT 'en',
+      idle_count INTEGER DEFAULT 0,
+      user_speaking INTEGER DEFAULT 0,
+      hung_up INTEGER DEFAULT 0
+    )`,
   ];
   for (const stmt of safeAdds) {
     try { await env.DB.prepare(stmt).run(); } catch (e) { /* column exists or table missing — ignore */ }

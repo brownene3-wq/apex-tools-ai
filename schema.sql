@@ -248,3 +248,15 @@ CREATE TABLE IF NOT EXISTS client_integrations (
 );
 CREATE INDEX IF NOT EXISTS idx_client_integrations_client ON client_integrations(client_id);
 CREATE INDEX IF NOT EXISTS idx_client_integrations_provider ON client_integrations(provider);
+
+-- Per-call silence state for language-aware idle prompts (custom replacement
+-- for Vapi's static idleMessages which can't match the call's locked language).
+CREATE TABLE IF NOT EXISTS call_silence_state (
+  call_id TEXT PRIMARY KEY,
+  client_id TEXT,
+  last_user_speech_at INTEGER,
+  lang TEXT DEFAULT 'en',
+  idle_count INTEGER DEFAULT 0,
+  user_speaking INTEGER DEFAULT 0,
+  hung_up INTEGER DEFAULT 0
+);

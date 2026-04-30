@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 41;
+export const PROMPT_VERSION = 42;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -637,12 +637,15 @@ export const syncAssistant = async (env, client) => {
       // because Spanish-speaking callers in South Florida virtually always
       // understand 'Hello? Are you still there?' If a client is exclusively
       // Spanish-speaking, set their language_pref to 'es' and we'd swap these.
-      idleMessages: [
-        'Hello? Are you still there?',
-        'Take your time, I am here whenever you are ready.',
-      ],
+      // STATIC idleMessages disabled — they can't match the call's locked
+      // language (Vapi limitation). Silence is now handled in the webhook
+      // (functions/api/webhooks/vapi.js) — speech-update events trigger a
+      // server-side timer, after 8s of silence the webhook calls Vapi's
+      // /call/{id}/control say API with a prompt in the language matching
+      // the most recent user utterance.
+      idleMessages: [],
       idleTimeoutSeconds: 8,
-      idleMessageMaxSpokenCount: 2,
+      idleMessageMaxSpokenCount: 0,
     },
     // Vapi caches the previous endCallMessage if we just omit the field — must
     // explicitly send empty string + null to actually clear the English fallback.
