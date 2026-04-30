@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 28;
+export const PROMPT_VERSION = 29;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -598,13 +598,16 @@ export const syncAssistant = async (env, client) => {
     voice: {
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
-      model: 'eleven_multilingual_v2',
-      stability: 0.65,
+      // eleven_turbo_v2_5 is designed for low-latency streaming over phone
+      // networks. Replaces eleven_multilingual_v2 which had chronic buffering
+      // hiccups during streaming. Still bilingual (Spanish + English).
+      model: 'eleven_turbo_v2_5',
+      // Higher stability = more consistent audio across chunks. Phone audio
+      // benefits from consistency more than expressiveness.
+      stability: 0.75,
       similarityBoost: 0.85,
-      // Let Vapi/ElevenLabs use their default streaming latency settings —
-      // overriding made the audio worse (more breakup, not less).
-      // chunkPlan minCharacters reduced 80 -> 30 — large chunks meant Vapi
-      // batched too much before each TTS request causing lumpy streaming.
+      style: 0,
+      useSpeakerBoost: true,
       chunkPlan: {
         enabled: true,
         minCharacters: 30,
