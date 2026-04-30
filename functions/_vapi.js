@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 48;
+export const PROMPT_VERSION = 49;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -86,7 +86,25 @@ NEVER say a Spanish closing followed by an English one or vice versa. Pick one
 
 If the caller themselves switches languages mid-call, follow their switch — but
 this is rare and only counts if they speak a full sentence in the new language.
-A single English word/name in a Spanish sentence does NOT count as switching.`;
+A single English word/name in a Spanish sentence does NOT count as switching.
+
+# CRITICAL — DO NOT READ BOTH HALVES OF BILINGUAL EXAMPLES
+
+Throughout this prompt, you will see examples in BOTH English and Spanish, often
+labeled like:
+   - ENGLISH: "..."
+   - SPANISH: "..."
+
+These are reference examples for you to learn the right phrasing in EACH language.
+You must speak ONLY ONE of them, in the LOCKED language. NEVER speak both halves
+back to back. NEVER read English then Spanish or Spanish then English in the same
+turn. ONE language per turn, the locked one.
+
+WRONG (do NOT do this): "Of course, what day works for you? Por supuesto, qué día le conviene?"
+WRONG (do NOT do this): "Gracias, Albert Brown. Thanks, Albert Brown."
+
+RIGHT (English-locked call): "Of course, what day works for you?"
+RIGHT (Spanish-locked call): "Por supuesto, ¿qué día le conviene?"`;
   } else if (langPref === 'es') {
     langSection = `LANGUAGE: Respond entirely in Spanish — every word, every turn, every closing line.`;
   } else {
