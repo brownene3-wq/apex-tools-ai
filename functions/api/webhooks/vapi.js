@@ -201,12 +201,28 @@ export async function onRequestPost(context) {
   }
 
   // Diagnostic: log every event type Vapi sends so we can debug what's actually
-  // arriving at this webhook. (We had silent failures because speech-update
-  // events weren't being delivered.) This gets cleaned up once silence handler
-  // is confirmed working.
+  // arriving at this webhook.
   try {
     await logUsage(env, client.id, 'vapi_webhook_event', { type, callId: msg.call?.id, role: msg.role, status: msg.status });
   } catch (e) { /* ignore */ }
+
+  // Force a fresh re-sync on every new call's status-update with status='in-progress'
+  // so the AI's prompt always has the current time. Without this, the time
+  // baked into the prompt at last sync becomes stale within hours, and the AI
+  // offers past time slots (e.g. 2 PM today when it's actually 7 PM).
+  // This is fire-and-forget and uses ctx.waitUntil so it doesn't block the response.
+  if (type === 'status-update' && msg.status === 'in-progress') {
+    try {
+      const { syncAssistant } = await import('../../_vapi.js');
+      const fullClient = await env.DB.prepare('SELECT * FROM clients WHERE id = ?').bind(client.id).first();
+      if (fullClient && fullClient.vapi_assistant_id) {
+        const syncPromise = syncAssistant(env, fullClient).then(r => {
+          return logUsage(env, client.id, 'call_start_resync', { ok: r.ok }).catch(() => {});
+        });
+        if (context.waitUntil) context.waitUntil(syncPromise);
+      }
+    } catch (e) { console.error('[call-start resync]', e); }
+  }
 
   // Auto-sync the live Vapi assistant if the latest deploy bumped PROMPT_VERSION.
   // Most calls this is a no-op (cheap field check). Only runs syncAssistant on the
