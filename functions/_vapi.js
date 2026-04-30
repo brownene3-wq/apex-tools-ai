@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 39;
+export const PROMPT_VERSION = 40;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -631,13 +631,16 @@ export const syncAssistant = async (env, client) => {
       // to back which felt repetitive. Spanish speakers in South Florida are
       // the primary at-risk audience for missing a prompt; English speakers
       // understand '¿Hola?' fine.
+      // First prompt English, second Spanish — Vapi plays them in order on
+      // each silence interval. Every silent caller gets a check-in in their
+      // language within 16s (one or both messages will hit), regardless of
+      // which language they locked the call to. Vapi doesn't support dynamic
+      // per-language idle messages directly, so this static rotation is the
+      // best workable solution.
       idleMessages: [
+        'Hello? Are you still there?',
         '¿Hola? ¿Sigue ahí?',
-        'Tómese su tiempo, lo escucho.',
       ],
-      // 8s feels responsive without being annoying. Phone-entry pauses won't
-      // trigger it because the AI's empty-string response on partial digits
-      // resets the silence timer between digit groups.
       idleTimeoutSeconds: 8,
       idleMessageMaxSpokenCount: 2,
     },
