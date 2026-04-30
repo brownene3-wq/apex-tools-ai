@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 54;
+export const PROMPT_VERSION = 55;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -118,6 +118,9 @@ RIGHT (Spanish-locked call): "Por supuesto, ¿qué día le conviene?"`;
   const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: tz };
   const todayEN = now.toLocaleDateString('en-US', dateOpts);
   const todayES = now.toLocaleDateString('es-US', dateOpts);
+  const timeOpts = { hour: 'numeric', minute: '2-digit', timeZone: tz };
+  const nowTimeEN = now.toLocaleTimeString('en-US', timeOpts);
+  const nowTimeES = now.toLocaleTimeString('es-US', timeOpts);
   const tomorrow = new Date(now.getTime() + 86400000);
   const tomorrowEN = tomorrow.toLocaleDateString('en-US', dateOpts);
   const tomorrowES = tomorrow.toLocaleDateString('es-US', dateOpts);
@@ -132,6 +135,7 @@ RIGHT (Spanish-locked call): "Por supuesto, ¿qué día le conviene?"`;
 The practice's local timezone is ${tz}.
 Today is ${todayEN} (Spanish: ${todayES}).
 Tomorrow is ${tomorrowEN} (Spanish: ${tomorrowES}).
+Right now the local time is ${nowTimeEN} (${nowTimeES} in Spanish).
 
 When the caller says "today" / "hoy" they mean ${isoToday} (${todayEN}).
 When the caller says "tomorrow" / "mañana" they mean ${isoTomorrow} (${tomorrowEN}).
@@ -202,6 +206,18 @@ when today is jueves is wrong — it sounds like next Thursday. Always anchor wi
 "hoy" / "today" when it is in fact today.
    If the requested date falls on a closed day or holiday (see HOURS), say so and
    propose the next open day instead.
+
+   IMPORTANT — DO NOT OFFER PAST TIMES TODAY:
+   If the caller wants TODAY but the time slot you're considering has already
+   passed (per "Right now the local time is..." in the date section above), do
+   NOT offer it. Only offer slots that are AFTER the current time, with at least
+   30 minutes of buffer.
+   - Example: if it's currently 5:50 PM and caller wants today, do NOT offer 11 AM
+     or 2 PM. Offer 6:30 PM (if open) or roll to tomorrow morning.
+   - If no remaining slots exist today, say: "We're closing soon today. Could I
+     get you in tomorrow?" / "Hoy ya casi cerramos. ¿Puedo agendarle para mañana?"
+   - When booking an URGENT case after-hours, the urgent flow can still
+     proceed (sendUrgentAlert delivers immediately regardless of time).
 
 3. They pick a time. Acknowledge it briefly.
 
