@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 18;
+export const PROMPT_VERSION = 19;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -143,22 +143,42 @@ ALWAYS pass digits ONCE, as a 10-character numeric string.
 
 # PHONE NUMBER READ-BACK — CRITICAL TURN RULES
 
-When you ask for the phone number, STAY ABSOLUTELY SILENT until the caller has said all 10 digits.
-Do not respond to a period, comma, or pause. Periods and commas mid-number are transcription
-artifacts, NOT signals that the caller is done. Count digits, not punctuation.
-A phone number has 2-3 natural pauses inside it ("786 ... 317 ... 7581"). Those pauses
-are NOT the caller finishing — they are breath/thinking pauses inside one continuous answer.
+After you ask for the phone number, the caller will say it across MULTIPLE turns.
+Vapi will hand you the turn after each natural pause ("siete ocho seis ..." then
+"tres uno siete ..." then "siete cinco ocho uno"). You must accumulate digits
+across turns. Count the TOTAL digits you've heard from the caller since you
+asked for the phone number — not just the digits in the last turn.
 
-NEVER do any of these while the caller is reciting their number:
-- Do NOT say "continúe", "sigue", "y el resto", "and the rest", "faltan dígitos", "missing digits".
-- Do NOT echo back partial digits.
-- Do NOT prompt them to keep going.
-- Do NOT say anything at all until you count at least 10 spoken digits OR they explicitly stop and ask you something.
+WHEN THE TOTAL ACCUMULATED DIGITS IS LESS THAN 10:
+You MUST respond with ONE of these short acknowledgments AND NOTHING ELSE:
+- SPANISH: "Ajá."
+- ENGLISH: "Mhm."
 
-If the caller pauses for more than ~3 seconds AFTER you have counted fewer than 10 digits, then
-(and only then) gently say: "Take your time — I'm listening." / "Tómese su tiempo, lo escucho."
+That's it. Just one word. The caller is mid-number; you're signaling you're
+listening so they keep going. Vapi will give you the turn again when they pause
+again, and you'll see more digits. Keep responding "Ajá" / "Mhm" until total
+digits reaches 10.
 
-Once you have heard all 10 digits, read them back grouped 3-3-4:
+DO NOT, while the caller has fewer than 10 digits accumulated:
+- ask "¿Y su apellido?" / "And your last name?" — name step is OVER, do not loop back
+- ask the caller to repeat
+- echo back partial digits
+- say "continúe", "sigue", "y el resto", "faltan dígitos", "and the rest", "missing digits"
+- ask any new question
+- read back what you have so far
+- end the call
+
+If you have heard digits AT ALL since asking for the phone, you are in PHONE
+COLLECTION mode. The caller's name has already been captured. Do not return to
+the name step under any circumstances.
+
+If the caller is silent for ~5 seconds AFTER giving partial digits, gently say:
+"Lo escucho — continúe cuando esté listo." / "I'm listening — go ahead whenever
+you're ready." This is the ONLY exception to the "Ajá"/"Mhm" rule, and only
+after a long silence.
+
+WHEN THE TOTAL ACCUMULATED DIGITS REACHES 10:
+Read them back grouped 3-3-4 with COMMAS between groups:
 - ENGLISH: "Let me read that back — seven-eight-six, three-one-seven, seven-five-eight-one. Is that right?"
 - SPANISH: "Déjeme repetirlo — siete-ocho-seis, tres-uno-siete, siete-cinco-ocho-uno. ¿Es correcto?"
 
@@ -352,13 +372,11 @@ export const syncAssistant = async (env, client) => {
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
-      // Long wait + lenient livekit smart endpointing to cover natural intra-number
-      // pauses ("786 ... 317 ... 7581"). Smart endpointing's x is the prob the user
-      // is done; waitFunction outputs ms to wait. Even at high probability we wait
-      // ~250ms; at low probability up to 12s — so the AI hesitates rather than
-      // talking over a continuing number.
-      waitSeconds: 2.5,
-      smartEndpointingPlan: { provider: 'livekit', waitFunction: '250 + 12000 * x' },
+      // Even longer wait — phone-number entry needs the AI to be very patient.
+      // Combined with the prompt rule that says respond 'Ajá'/'Mhm' to partial
+      // digits, this means: if the AI does grab the turn, it just acknowledges.
+      waitSeconds: 3.0,
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '500 + 15000 * x' },
     },
     // Don't let small interjections from the AI cut off the caller mid-sentence.
     stopSpeakingPlan: {
