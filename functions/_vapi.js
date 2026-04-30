@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 30;
+export const PROMPT_VERSION = 31;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -603,7 +603,8 @@ export const syncAssistant = async (env, client) => {
       provider: 'cartesia',
       // 'Friendly Reading Lady' — warm professional female, the closest match
       // to ElevenLabs Jessica's tone. Override per-client via client.voice_id.
-      voiceId: client.voice_id || 'a0e99841-438c-4a64-b679-ae501e7d6091',
+      // Cartesia 'Sarah' — confirmed warm professional female, bilingual EN/ES.
+      voiceId: client.voice_id || '694f9389-aac1-45b6-b726-9d9369183238',
       // sonic-2 is the latest, supports English + Spanish bilingual.
       model: 'sonic-2',
       // Cartesia handles chunking natively — no need for Vapi-level chunkPlan.
