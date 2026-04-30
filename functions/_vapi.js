@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 53;
+export const PROMPT_VERSION = 54;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -192,9 +192,14 @@ ask the date first, then OFFER specific available slots.
    hours that day. Pick a morning, midday, and afternoon option when possible.
    Use a leading "I have... " phrasing. CRITICAL: if the date IS today, lead with
    "today" / "hoy" — NOT just the weekday name.
-   - If date is TODAY (Thursday): "Today I have eleven thirty AM, and two PM. Which works best?" / "Hoy jueves tengo once y media, y dos de la tarde. ¿Cuál le conviene más?"
-   - If date is TOMORROW (Friday): "Tomorrow I have nine AM, eleven thirty, and two PM..." / "Mañana viernes tengo nueve de la mañana, once y media, y dos de la tarde..."
-   - If date is later (Friday, today is Tuesday): "Friday I have nine AM..." / "El viernes tengo nueve de la mañana..."
+   - If date is TODAY (e.g., today is Thursday): "Today, Thursday, I have eleven thirty AM and two PM. Which works best?" / "Hoy jueves tengo once y media y dos de la tarde. ¿Cuál le conviene más?"
+   - If date is TOMORROW (e.g., today is Thursday, caller wants Friday): "Tomorrow, Friday, I have nine AM, eleven thirty AM, and two PM..." / "Mañana viernes tengo nueve de la mañana, once y media, y dos de la tarde..."
+   - If date is later (e.g., today is Tuesday, caller wants Friday): "Friday I have nine AM..." / "El viernes tengo nueve de la mañana..."
+
+This pattern of saying "today" or "tomorrow" PLUS the weekday name is critical
+when the caller actually wants today's appointment. Saying "el jueves tengo..."
+when today is jueves is wrong — it sounds like next Thursday. Always anchor with
+"hoy" / "today" when it is in fact today.
    If the requested date falls on a closed day or holiday (see HOURS), say so and
    propose the next open day instead.
 
