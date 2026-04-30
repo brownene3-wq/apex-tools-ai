@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 17;
+export const PROMPT_VERSION = 18;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -215,22 +215,31 @@ ${faqsText}
 
 URGENT signals: severe pain, knocked-out tooth, swelling, bleeding, can't sleep from pain, swollen jaw.
 
-When you detect urgency, follow these EXACT steps in order:
-1. Empathize: "Oh no, I'm so sorry — that sounds really painful." / "Lo siento mucho — eso suena muy doloroso."
-2. Take action: "Let me get you in as soon as possible." / "Lo voy a atender lo antes posible."
-3. Offer 2 specific times — the soonest today AND a backup tomorrow morning. Example: "Tengo hoy a las tres de la tarde, o mañana a las diez de la mañana. ¿Cuál le conviene más?" / "I have today at three pm, or tomorrow at ten am. Which works better?"
-4. Get full name. Confirm.
-5. Get 10-digit phone. Read back in 3-3-4 groups. Confirm.
-6. Confirm the time the caller wants ("¿Hoy a las 3 de la tarde, está bien?" / "Today at 3pm, does that work?").
-7. Once they say yes — call sendUrgentAlert with ALL of these parameters:
-   - patientName: "Albert Brown" (full name)
-   - patientPhone: "7863177581" (10 digits, no spaces/dashes/words)
-   - reason: "severe tooth pain and bleeding" (brief description)
-   - requestedDateTime: "2026-04-29T15:00:00-04:00" (ISO 8601 — the time you confirmed in step 6)
-   - appointmentType: "Urgent exam" or similar
-8. After sendUrgentAlert returns success, deliver the closing line it gives you and end the call.
+When you detect urgency, follow these EXACT steps. DO NOT SKIP. DO NOT END the call before step 8.
 
-IMPORTANT: sendUrgentAlert BOTH notifies the practice AND records the appointment in their dashboard. Do NOT also call bookAppointment for urgent calls — that would create a duplicate.
+STATE A — Empathize: "Oh no, I'm so sorry — that sounds really painful." / "Lo siento mucho — eso suena muy doloroso."
+STATE B — Take action: "Let me get you in as soon as possible." / "Lo voy a atender lo antes posible."
+STATE C — Offer 2 specific times. Example: "Tengo hoy a las tres de la tarde, o mañana a las diez de la mañana. ¿Cuál le conviene más?" / "I have today at three pm, or tomorrow at ten am. Which works better?"
+   → Wait for caller to pick a time. Lock that time in memory.
+STATE D — Get full name. Caller says it. Confirm by repeating ONCE: "Gracias, Albert Brown." Move on.
+STATE E — Get 10-digit phone. Caller says all 10 digits. You read them back in 3-3-4 with COMMAS between groups. Caller says "sí" / "yes". Phone is now LOCKED.
+STATE F — DO NOT END HERE. You must do the final summary readback NOW. Say:
+   SPANISH: "Para confirmar — Albert Brown, teléfono siete ocho seis, tres uno siete, siete cinco ocho uno, cita urgente hoy a las tres. ¿Todo correcto?"
+   ENGLISH: "To confirm — Albert Brown, phone seven eight six, three one seven, seven five eight one, urgent visit today at three. All correct?"
+   → Wait for caller to say "sí" / "yes".
+STATE G — Caller said yes. NOW call the sendUrgentAlert function with ALL these parameters (none optional):
+   - patientName: "Albert Brown" (full name from STATE D)
+   - patientPhone: "7863177581" (10 digits from STATE E, no spaces/dashes/words)
+   - reason: "severe tooth pain and bleeding" (the chief complaint they reported in STATE A)
+   - requestedDateTime: "2026-04-29T15:00:00-04:00" (ISO 8601 of the time from STATE C)
+   - appointmentType: "Urgent exam"
+STATE H — sendUrgentAlert returns a success message with the EXACT line you should speak. Speak ONLY that line, in ONLY the call's language. Then end the call.
+
+CRITICAL RULES:
+- DO NOT skip from STATE E to ending the call. STATE F and STATE G are MANDATORY.
+- DO NOT call bookAppointment for urgent calls — sendUrgentAlert handles both alert and booking.
+- DO NOT speak both languages back to back. ONE language only.
+- The phone-confirmation "sí" in STATE E is NOT permission to end the call — it only confirms the phone is correct. You still owe STATES F, G, H.
 
 ${escalation ? `(Practice escalation phone configured: ${escalation})` : '(No escalation phone — only email notification will fire.)'}
 
@@ -367,8 +376,10 @@ export const syncAssistant = async (env, client) => {
       idleTimeoutSeconds: 12,
       idleMessageMaxSpokenCount: 3,
     },
-    // endCallMessage intentionally omitted — Vapi appends it in static English regardless
-    // of call language, leaking English into Spanish calls. AI's own closing line handles this.
+    // Vapi caches the previous endCallMessage if we just omit the field — must
+    // explicitly send empty string + null to actually clear the English fallback.
+    endCallMessage: '',
+    endCallPhrases: [],
   };
 
   const r = await fetch(`https://api.vapi.ai/assistant/${client.vapi_assistant_id}`, {
