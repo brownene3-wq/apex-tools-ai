@@ -77,6 +77,14 @@ export async function onRequestPost(context) {
     return json({ ok: true, ignored: true });
   }
 
+  // Diagnostic: log every event type Vapi sends so we can debug what's actually
+  // arriving at this webhook. (We had silent failures because speech-update
+  // events weren't being delivered.) This gets cleaned up once silence handler
+  // is confirmed working.
+  try {
+    await logUsage(env, client.id, 'vapi_webhook_event', { type, callId: msg.call?.id, role: msg.role, status: msg.status });
+  } catch (e) { /* ignore */ }
+
   // Auto-sync the live Vapi assistant if the latest deploy bumped PROMPT_VERSION.
   // Most calls this is a no-op (cheap field check). Only runs syncAssistant on the
   // first call after a deploy with a higher version number.
