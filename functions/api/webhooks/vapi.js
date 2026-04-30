@@ -25,7 +25,7 @@ async function ensureSilenceCheck(env, callId, client, assistantId) {
     let state;
     try {
       state = await env.DB.prepare(
-        'SELECT last_user_speech_at, lang, idle_count, user_speaking, hung_up FROM call_silence_state WHERE call_id = ?'
+        'SELECT last_user_speech_at, lang, idle_count, user_speaking, hung_up, control_url FROM call_silence_state WHERE call_id = ?'
       ).bind(callId).first();
     } catch (e) { await diag('state_read_error', { err: String(e) }); return; }
 
@@ -44,27 +44,22 @@ async function ensureSilenceCheck(env, callId, client, assistantId) {
 
     if (!env.VAPI_ORG_TOKEN) { await diag('no_token'); return; }
 
-    // Try multiple Vapi endpoint variations — their API has changed and docs
-    // disagree. Whichever one returns 2xx wins.
-    const attempts = [
-      { url: `https://api.vapi.ai/call/${callId}`, method: 'PATCH', body: { messages: [{ role: 'system', content: message }] } },
-      { url: `https://api.vapi.ai/call/${callId}/say`, method: 'POST', body: { message, type: 'say', endCallAfterSpoken: false } },
-      { url: `https://api.vapi.ai/call/${callId}/inject`, method: 'POST', body: { message, type: 'say' } },
-    ];
+    // Use the per-call controlUrl that Vapi provides in webhook payload at
+    // msg.call.monitor.controlUrl. This is the documented endpoint (not
+    // api.vapi.ai/call/{id}/control which 404s).
+    if (!state.control_url) { await diag('no_control_url'); continue; }
     let anyOk = false;
-    for (const a of attempts) {
-      try {
-        const r = await fetch(a.url, {
-          method: a.method,
-          headers: { 'Authorization': `Bearer ${env.VAPI_ORG_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(a.body),
-        });
-        const respText = await r.text();
-        await diag('say_api_attempt', { url: a.url, method: a.method, status: r.status, ok: r.ok, body: respText.slice(0, 300) });
-        if (r.ok) { anyOk = true; break; }
-      } catch (e) {
-        await diag('say_api_throw', { url: a.url, err: String(e) });
-      }
+    try {
+      const r = await fetch(state.control_url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'say', message, endCallAfterSpoken: false }),
+      });
+      const respText = await r.text();
+      await diag('say_api_response', { url: state.control_url, status: r.status, ok: r.ok, body: respText.slice(0, 300) });
+      if (r.ok) anyOk = true;
+    } catch (e) {
+      await diag('say_api_throw', { err: String(e) });
     }
     if (anyOk) {
       await env.DB.prepare('UPDATE call_silence_state SET idle_count = idle_count + 1 WHERE call_id = ?').bind(callId).run();
@@ -220,15 +215,15 @@ export async function onRequestPost(context) {
   if (type === 'transcript' && msg.role === 'user') {
     const callId = msg.call?.id;
     if (!callId) return json({ ok: true });
-    // Detect language from the user's actual utterance content
     const utterance = msg.transcript || msg.transcriptText || '';
     const lang = /[áéíóúñ¿¡]|\bhola\b|\bgracias\b|\bpor favor\b|\bsí\b|\bcita\b|\bdolor\b|\bsangrado\b|\bquiero\b|\bnecesito\b/i.test(utterance) ? 'es' : 'en';
+    const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
       await env.DB.prepare(
-        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking)
-         VALUES (?, ?, ?, ?, 0, 1)
-         ON CONFLICT(call_id) DO UPDATE SET last_user_speech_at = excluded.last_user_speech_at, lang = excluded.lang, user_speaking = 1`
-      ).bind(callId, client.id, Date.now(), lang).run();
+        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking, control_url)
+         VALUES (?, ?, ?, ?, 0, 1, ?)
+         ON CONFLICT(call_id) DO UPDATE SET last_user_speech_at = excluded.last_user_speech_at, lang = excluded.lang, user_speaking = 1, control_url = COALESCE(excluded.control_url, call_silence_state.control_url)`
+      ).bind(callId, client.id, Date.now(), lang, controlUrl).run();
     } catch (e) { console.error('[transcript-state]', e); }
     return json({ ok: true });
   }
@@ -247,12 +242,13 @@ export async function onRequestPost(context) {
     } catch {}
     // Mark user_speaking=0 so the silence check can run. Use existing lang or
     // default to en (we may not know language yet on first AI turn).
+    const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
       await env.DB.prepare(
-        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking)
-         VALUES (?, ?, ?, ?, 0, 0)
-         ON CONFLICT(call_id) DO UPDATE SET user_speaking = 0`
-      ).bind(callId, client.id, Date.now(), 'en').run();
+        `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking, control_url)
+         VALUES (?, ?, ?, ?, 0, 0, ?)
+         ON CONFLICT(call_id) DO UPDATE SET user_speaking = 0, control_url = COALESCE(excluded.control_url, call_silence_state.control_url)`
+      ).bind(callId, client.id, Date.now(), 'en', controlUrl).run();
     } catch (e) { console.error('[ai-stopped-state]', e); }
     const silencePromise = ensureSilenceCheck(env, callId, client, msg.assistant?.id || msg.call?.assistantId);
     if (context.waitUntil) context.waitUntil(silencePromise);

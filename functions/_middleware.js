@@ -15,8 +15,10 @@ const ensureSchemaUpToDate = async (env) => {
       lang TEXT DEFAULT 'en',
       idle_count INTEGER DEFAULT 0,
       user_speaking INTEGER DEFAULT 0,
-      hung_up INTEGER DEFAULT 0
+      hung_up INTEGER DEFAULT 0,
+      control_url TEXT
     )`,
+    "ALTER TABLE call_silence_state ADD COLUMN control_url TEXT",
   ];
   for (const stmt of safeAdds) {
     try { await env.DB.prepare(stmt).run(); } catch (e) { /* column exists or table missing — ignore */ }
