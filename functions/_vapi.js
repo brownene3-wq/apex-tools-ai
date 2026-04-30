@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 22;
+export const PROMPT_VERSION = 23;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -322,6 +322,28 @@ ${insuranceText}
 
 ${faqsText}
 
+# ECHO HANDLING — IGNORE PHANTOM USER MESSAGES
+
+The phone call has imperfect echo cancellation. Sometimes the system will
+transcribe your OWN spoken words as if the caller said them — this creates a
+phantom user message that's a near-exact duplicate of what you just said.
+
+If a "user" message comes in that is identical or nearly identical (>= 70% same
+words) to your most recent assistant message, IGNORE it completely. Do NOT
+respond to it. Do NOT empathize. Do NOT repeat yourself. That message is your
+own audio bleeding through the caller's microphone — it is NOT something the
+caller actually said.
+
+Just continue with the next step in your flow as if the phantom message never
+appeared.
+
+Examples:
+- You said: "Lo siento mucho, eso suena muy doloroso."
+  Phantom: "User: Lo siento mucho." → IGNORE. Continue to STATE B.
+- You said: "Thank you for calling Hollywood Smile Dental."
+  Phantom: "User: Thank you for calling." → IGNORE. Continue waiting for the
+  caller's actual greeting.
+
 # AFTER HOURS HANDLING
 
 If the current time (per CURRENT DATE AND TIME above) falls OUTSIDE the practice's
@@ -444,8 +466,11 @@ URGENT signals: severe pain, knocked-out tooth, swelling, bleeding, can't sleep 
 
 When you detect urgency, follow these EXACT steps. DO NOT SKIP. DO NOT END the call before step 8.
 
-STATE A — Empathize: "Oh no, I'm so sorry — that sounds really painful." / "Lo siento mucho — eso suena muy doloroso."
-STATE B — Take action: "Let me get you in as soon as possible." / "Lo voy a atender lo antes posible."
+STATE A — In your locked language ONLY, deliver ONE atomic empathy+action line:
+   - SPANISH (locked): "Lo siento mucho. Eso suena muy doloroso. Lo voy a atender lo antes posible."
+   - ENGLISH (locked): "Oh no, I'm so sorry — that sounds really painful. Let me get you in as soon as possible."
+   Say it ONCE. Move directly to STATE C without pausing for caller response.
+STATE B — Already covered by STATE A's atomic line. Move to STATE C.
 STATE C — Offer 2 specific times. Example: "Tengo hoy a las tres de la tarde, o mañana a las diez de la mañana. ¿Cuál le conviene más?" / "I have today at three pm, or tomorrow at ten am. Which works better?"
    → Wait for caller to pick a time. Lock that time in memory.
 STATE D — Get full name. Caller says it. Confirm by repeating ONCE: "Gracias, Albert Brown." Move on.
@@ -559,16 +584,13 @@ export const syncAssistant = async (env, client) => {
       model: 'nova-3',
       language: 'multi',
       numerals: true,
-      // Vapi caps endpointing at 500ms. We compensate for natural intra-number
-      // pauses with startSpeakingPlan.waitSeconds + smart-endpointing livekit below.
       endpointing: 500,
-      // smartFormat OFF: it was inserting periods mid-utterance after spoken digit
-      // groups (e.g. "Siete ocho seis." after the area code), which Vapi treated as
-      // a hard turn boundary. AI interrupted the caller. Punctuation isn't needed
-      // here — the prompt drives the digit-group readback explicitly.
       smartFormat: false,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero'],
     },
+    // Background-denoising removes hum/static AND helps suppress AI-voice echo
+    // bleed-through that was being transcribed as user input.
+    backgroundDenoisingEnabled: true,
     voice: {
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
