@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 36;
+export const PROMPT_VERSION = 37;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -596,12 +596,12 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // OpenAI TTS — newest TTS-1-HD model. Ranked among the most natural-
-      // sounding voices in industry tests, handles Spanish + English fluently,
-      // and is the most reliable streaming TTS available (OpenAI's
-      // infrastructure is built for production scale).
-      provider: 'openai',
-      voiceId: client.voice_id || 'shimmer',
+      // Original ElevenLabs setup — Jessica voice on eleven_multilingual_v2.
+      provider: '11labs',
+      voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
+      model: 'eleven_multilingual_v2',
+      stability: 0.65,
+      similarityBoost: 0.85,
     },
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
