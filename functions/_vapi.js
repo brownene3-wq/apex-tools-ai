@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 49;
+export const PROMPT_VERSION = 50;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -561,7 +561,7 @@ export const buildFirstMessage = (client) => {
   // call. Without this, the first syllable of the greeting gets clipped.
   if (langPref === 'es') return `... Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
   if (langPref === 'en') return `... Thank you for calling ${business}, how can I help you today?`;
-  return `... Thank you for calling ${business}, gracias por llamar a ${business} — how can I help you today? ¿En qué le puedo ayudar?`;
+  return `... Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
