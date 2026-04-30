@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 34;
+export const PROMPT_VERSION = 35;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -596,27 +596,20 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // ElevenLabs 'Aria' — the most natural-sounding professional female voice
-      // in their catalog, the one most production voice-AI deployments use when
-      // they want "sounds like a real human."
-      provider: '11labs',
-      // ElevenLabs 'Charlotte' — the most genuinely human-sounding female voice
-      // in their catalog. Casual, warm, conversational — used when the goal is
-      // 'callers can't tell it's AI.' Bilingual EN/ES on flash_v2_5.
-      voiceId: client.voice_id || 'XB0fDUnXU5powFXDhCwa',
-      // eleven_flash_v2_5 is their newest streaming-optimized model — faster
-      // and more reliable for phone calls than multilingual_v2 (which had
-      // chronic buffering hiccups) and turbo_v2_5. Bilingual EN/ES.
-      model: 'eleven_flash_v2_5',
-      // Higher stability for phone-call consistency. Style at 0 keeps voice
-      // steady (style >0 introduces emotional variance which breaks up over
-      // phone audio).
-      // Slightly lower stability lets Charlotte's natural conversational
-      // rhythm come through. 0.5 is the sweet spot for 'sounds human'.
-      stability: 0.5,
-      similarityBoost: 0.85,
-      style: 0.3,
-      useSpeakerBoost: true,
+      // PlayHT 'Jennifer' — different architecture from ElevenLabs, often rated
+      // as THE most human-sounding female voice across blind-test benchmarks.
+      // Built specifically to clear the uncanny valley.
+      provider: 'playht',
+      voiceId: client.voice_id || 'jennifer',
+      // Play 3.0 Mini is their fast, multilingual streaming model — handles
+      // English + Spanish natively without quality drop.
+      model: 'PlayHT2.0-turbo',
+      speed: 1.0,
+      temperature: 0.5,
+      emotion: 'female_happy',
+      voiceGuidance: 3,
+      styleGuidance: 20,
+      textGuidance: 1,
     },
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
