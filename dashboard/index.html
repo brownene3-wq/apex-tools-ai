@@ -18,7 +18,8 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
 .font-display{font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.02em}
 .gradient-text{background:linear-gradient(135deg,#f97316 0%,#fbbf24 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .nav-active{background:rgb(15 30 54);color:white}
-.nav-active .nav-icon{color:#f97316}
+.nav-active:hover{background:rgb(15 30 54)!important;color:white!important}
+.nav-active:hover .nav-icon{color:#f97316!important}
 .toast{animation:slideUp 0.3s ease-out}
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 [x-cloak]{display:none!important}
@@ -105,7 +106,7 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
         <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Call History</h1>
         <p class="text-navy-600 text-sm mb-6">Every call your AI handled — listen, read transcripts, see outcomes.</p>
         <div class="bg-white rounded-2xl border border-navy-100 p-4 mb-4 flex flex-wrap gap-3">
-          <input id="callQ" placeholder="Search number or transcript..." class="flex-1 min-w-[180px] px-3 py-2 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500">
+          <input id="callQ" placeholder="Search number or transcript..." autocomplete="off" name="search-calls-q" class="flex-1 min-w-[180px] px-3 py-2 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500">
           <select id="callLang" class="px-3 py-2 border border-navy-200 rounded-lg text-sm">
             <option value="">All languages</option><option value="en">English</option><option value="es">Spanish</option>
           </select>
