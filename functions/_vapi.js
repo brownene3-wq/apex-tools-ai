@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 20;
+export const PROMPT_VERSION = 21;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -22,6 +22,16 @@ export const ensureAssistantSynced = async (env, client) => {
     } catch (e) { console.error('[ensureAssistantSynced] could not store version', e); }
   }
   return { ok: r.ok, version: PROMPT_VERSION, error: r.error || r.data?.message };
+};
+
+// Compute timezone offset string for ISO 8601 dates (e.g. "-04:00" for EDT).
+const tzOffsetString = (tz) => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' });
+    const parts = formatter.formatToParts(new Date());
+    const offset = parts.find(p => p.type === 'timeZoneName')?.value || '';
+    return offset.replace(/^GMT/, '') || '-04:00';
+  } catch { return '-04:00'; }
 };
 
 const parseJSON = (s, fallback) => {
@@ -83,7 +93,42 @@ A single English word/name in a Spanish sentence does NOT count as switching.`;
     langSection = `LANGUAGE: Respond entirely in English — every word, every turn, every closing line.`;
   }
 
+  // Compute current date in the client's timezone so the AI can correctly
+  // interpret 'today' / 'tomorrow' / 'hoy' / 'mañana'.
+  const tz = client.timezone || 'America/New_York';
+  const now = new Date();
+  const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: tz };
+  const todayEN = now.toLocaleDateString('en-US', dateOpts);
+  const todayES = now.toLocaleDateString('es-US', dateOpts);
+  const tomorrow = new Date(now.getTime() + 86400000);
+  const tomorrowEN = tomorrow.toLocaleDateString('en-US', dateOpts);
+  const tomorrowES = tomorrow.toLocaleDateString('es-US', dateOpts);
+  const isoToday = now.toISOString().slice(0,10);
+  const isoTomorrow = tomorrow.toISOString().slice(0,10);
+  const tzOff = tzOffsetString(tz);
+
   return `You are the AI receptionist for ${business}, a ${practiceType.replace('_', ' ')} practice. You are warm, professional, helpful, and efficient.
+
+# CURRENT DATE AND TIME — USE THIS FOR ALL APPOINTMENTS
+
+The practice's local timezone is ${tz}.
+Today is ${todayEN} (Spanish: ${todayES}).
+Tomorrow is ${tomorrowEN} (Spanish: ${tomorrowES}).
+
+When the caller says "today" / "hoy" they mean ${isoToday} (${todayEN}).
+When the caller says "tomorrow" / "mañana" they mean ${isoTomorrow} (${tomorrowEN}).
+
+When you call bookAppointment or sendUrgentAlert, the requestedDateTime
+parameter must be a real ISO 8601 datetime built from THIS date.
+Example: caller wants "today at 3 pm" → requestedDateTime: "${isoToday}T15:00:00${tzOff}"
+Example: caller wants "tomorrow at 10 am" → requestedDateTime: "${isoTomorrow}T10:00:00${tzOff}"
+
+When you confirm the appointment back to the caller, say the day correctly:
+- If you scheduled it for today, say "hoy" (Spanish) or "today" (English) — NOT
+  the weekday name. Saying "Sunday at 3 pm" when today is ${todayEN.split(',')[0]} is a
+  critical failure.
+- If you scheduled it for tomorrow, say "mañana" / "tomorrow".
+- Otherwise say the actual weekday name (e.g. "el lunes" / "Monday").
 
 # CRITICAL RULES
 
@@ -407,12 +452,11 @@ export const syncAssistant = async (env, client) => {
     silenceTimeoutSeconds: 90,
     messagePlan: {
       idleMessages: [
-        'Are you still there?',
-        "I'm here whenever you're ready — take your time.",
-        "Hello? Just checking you're still on the line.",
+        '¿Sigue ahí? — Are you still there?',
+        'Tómese su tiempo, lo escucho. — Take your time, I am listening.',
       ],
-      idleTimeoutSeconds: 12,
-      idleMessageMaxSpokenCount: 3,
+      idleTimeoutSeconds: 20,
+      idleMessageMaxSpokenCount: 2,
     },
     // Vapi caches the previous endCallMessage if we just omit the field — must
     // explicitly send empty string + null to actually clear the English fallback.
