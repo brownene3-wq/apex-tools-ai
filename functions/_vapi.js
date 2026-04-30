@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 38;
+export const PROMPT_VERSION = 39;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -635,7 +635,10 @@ export const syncAssistant = async (env, client) => {
         '¿Hola? ¿Sigue ahí?',
         'Tómese su tiempo, lo escucho.',
       ],
-      idleTimeoutSeconds: 20,
+      // 8s feels responsive without being annoying. Phone-entry pauses won't
+      // trigger it because the AI's empty-string response on partial digits
+      // resets the silence timer between digit groups.
+      idleTimeoutSeconds: 8,
       idleMessageMaxSpokenCount: 2,
     },
     // Vapi caches the previous endCallMessage if we just omit the field — must
