@@ -9,28 +9,32 @@ import { ensureAssistantSynced } from '../../_vapi.js';
 // This replaces Vapi's static idleMessages so the prompt language matches
 // the call language (which Vapi can't do natively).
 async function ensureSilenceCheck(env, callId, client, assistantId) {
-  // Fire-and-forget background timer. Cloudflare Pages Functions run in
-  // workerd which keeps the request alive while there are pending promises.
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   const idleTimeoutMs = 8000;
   const maxIdle = 2;
+  const diag = async (event, data = {}) => {
+    try { await env.DB.prepare("INSERT INTO usage_events (client_id, event_type, event_data_json, created_at) VALUES (?, ?, ?, ?)").bind(client.id, 'silence_diag', JSON.stringify({ event, callId, ...data }), Date.now()).run(); } catch {}
+  };
+  await diag('handler_entered');
 
   for (let i = 0; i < maxIdle; i++) {
+    await diag('waiting', { iteration: i });
     await wait(idleTimeoutMs);
+    await diag('woke_up', { iteration: i });
 
-    // Re-read state — if user spoke since, abort.
     let state;
     try {
       state = await env.DB.prepare(
         'SELECT last_user_speech_at, lang, idle_count, user_speaking, hung_up FROM call_silence_state WHERE call_id = ?'
       ).bind(callId).first();
-    } catch (e) { return; }
-    if (!state) return;
-    if (state.hung_up) return;
-    if (state.user_speaking) return; // user came back
-    if (state.idle_count >= maxIdle) return;
+    } catch (e) { await diag('state_read_error', { err: String(e) }); return; }
 
-    // Still silent — send say request to Vapi
+    await diag('state_read', state || { state: 'null' });
+    if (!state) return;
+    if (state.hung_up) { await diag('aborted_hung_up'); return; }
+    if (state.user_speaking) { await diag('aborted_user_speaking'); return; }
+    if (state.idle_count >= maxIdle) { await diag('aborted_max_idle'); return; }
+
     const lang = state.lang || 'en';
     const prompts = [
       lang === 'es' ? '¿Hola? ¿Sigue ahí?' : 'Hello? Are you still there?',
@@ -38,22 +42,26 @@ async function ensureSilenceCheck(env, callId, client, assistantId) {
     ];
     const message = prompts[state.idle_count] || prompts[0];
 
+    if (!env.VAPI_ORG_TOKEN) { await diag('no_token'); return; }
+
     try {
       const r = await fetch(`https://api.vapi.ai/call/${callId}/control`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.VAPI_ORG_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${env.VAPI_ORG_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'say', message, endCallAfterSpoken: false }),
       });
+      const respText = await r.text();
+      await diag('say_api_response', { status: r.status, ok: r.ok, body: respText.slice(0, 500) });
       if (r.ok) {
         await env.DB.prepare(
           'UPDATE call_silence_state SET idle_count = idle_count + 1 WHERE call_id = ?'
         ).bind(callId).run();
       }
-    } catch (e) { console.error('[say-api]', e); }
+    } catch (e) {
+      await diag('say_api_throw', { err: String(e) });
+    }
   }
+  await diag('handler_complete');
 }
 
 
