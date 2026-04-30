@@ -217,7 +217,10 @@ export async function onRequestPost(context) {
     const callId = msg.call?.id;
     if (!callId) return json({ ok: true });
     const utterance = msg.transcript || msg.transcriptText || '';
-    const lang = /[áéíóúñ¿¡]|\bhola\b|\bgracias\b|\bpor favor\b|\bsí\b|\bcita\b|\bdolor\b|\bsangrado\b|\bquiero\b|\bnecesito\b/i.test(utterance) ? 'es' : 'en';
+    // Comprehensive Spanish detection — handles code-switched Spanglish like
+    // "Para hacer un appointment" by checking for any Spanish-distinct word.
+    const spanishRe = /[áéíóúñ¿¡]|\b(?:hola|gracias|por\s+favor|s[ií]|cita|dolor|sangrado|quiero|quisiera|necesito|para|hacer|qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|cu[aá]nto|d[oó]nde|qui[eé]n|hablar|espa[nñ]ol|ayuda|disculpe|perd[oó]n|llamar|tel[eé]fono|n[uú]mero|hoy|ma[nñ]ana|tarde|noche|d[ií]a|urgente|cuesta|tengo|estoy|est[aá]|soy|somos|esta|este|muy|mucho|tambi[eé]n|pero|sin|con|aqu[ií]|all[ií]|gracias|de\s+nada|adi[oó]s|cu[ií]dese|usted|ustedes|nosotros|me|le|los|las|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|dentista|doctora|m[eé]dico|emergencia|sangre|muela|diente)\b/i;
+    const lang = spanishRe.test(utterance) ? 'es' : 'en';
     const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
       await env.DB.prepare(
