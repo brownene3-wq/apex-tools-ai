@@ -326,10 +326,23 @@ export async function onRequestPost(context) {
     const lang = spanishRe.test(utterance) ? 'es' : 'en';
     const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
+      // Sticky language detection: only update lang on conflict if the new
+      // utterance has clear Spanish signal AND current is 'en' (allows
+      // 'en' -> 'es' flip when Spanish becomes obvious). NEVER flip 'es' -> 'en'
+      // mid-call — names like 'Chucky' or digit utterances shouldn't reset language.
       await env.DB.prepare(
         `INSERT INTO call_silence_state (call_id, client_id, last_user_speech_at, lang, idle_count, user_speaking, control_url, check_in_progress)
          VALUES (?, ?, ?, ?, 0, 1, ?, 0)
-         ON CONFLICT(call_id) DO UPDATE SET last_user_speech_at = excluded.last_user_speech_at, lang = excluded.lang, user_speaking = 1, control_url = COALESCE(excluded.control_url, call_silence_state.control_url), check_in_progress = 0`
+         ON CONFLICT(call_id) DO UPDATE SET
+           last_user_speech_at = excluded.last_user_speech_at,
+           user_speaking = 1,
+           control_url = COALESCE(excluded.control_url, call_silence_state.control_url),
+           check_in_progress = 0,
+           lang = CASE
+             WHEN call_silence_state.lang = 'es' THEN 'es'
+             WHEN excluded.lang = 'es' THEN 'es'
+             ELSE call_silence_state.lang
+           END`
       ).bind(callId, client.id, Date.now(), lang, controlUrl).run();
     } catch (e) { console.error('[transcript-state]', e); }
     return json({ ok: true });
