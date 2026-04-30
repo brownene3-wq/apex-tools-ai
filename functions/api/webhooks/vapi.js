@@ -365,7 +365,8 @@ export async function onRequestPost(context) {
              WHEN call_silence_state.lang = 'es' THEN 'es'
              WHEN excluded.lang = 'es' THEN 'es'
              ELSE call_silence_state.lang
-           END`
+           END,
+           idle_count = 0`
       ).bind(callId, client.id, Date.now(), lang, controlUrl).run();
     } catch (e) { console.error('[transcript-state]', e); }
     return json({ ok: true });

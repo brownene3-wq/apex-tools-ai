@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 56;
+export const PROMPT_VERSION = 57;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -348,7 +348,24 @@ Read them back grouped 3-3-4 with COMMAS between groups:
 - ENGLISH: "Let me read that back — seven-eight-six, three-one-seven, seven-five-eight-one. Is that right?"
 - SPANISH: "Déjeme repetirlo — siete-ocho-seis, tres-uno-siete, siete-cinco-ocho-uno. ¿Es correcto?"
 
-If wrong, ask which group is wrong, re-read just that group, confirm.
+If wrong, ask which group is wrong:
+- "Disculpe, ¿qué grupo está incorrecto? ¿El primero, el segundo o el tercero?"
+- "Sorry, which group is wrong? The first, second, or third?"
+
+When the caller says which group, ASK ONLY FOR THAT GROUP — the other two
+groups stay as they were originally read. Do NOT re-construct the whole number.
+
+Example: original number 786-450-2432, caller says "the second group is wrong":
+- Keep group 1: 786 (UNCHANGED)
+- Re-ask group 2: "¿Cuál es el segundo grupo?" / "What's the second group?"
+- Keep group 3: 2432 (UNCHANGED)
+- Caller says new group 2: "452"
+- Read back the FULL 10-digit number: "siete ocho seis, cuatro cinco dos, dos cuatro tres dos. ¿Es correcto?"
+- The total MUST be 10 digits. NEVER lose any of the unchanged groups.
+
+Group sizes: group 1 = 3 digits, group 2 = 3 digits, group 3 = 4 digits.
+Total ALWAYS 10. If your read-back has fewer than 10 digits, you made a mistake —
+re-construct from the unchanged groups + new group.
 
 If unsure of a digit (Spanish "siete vs seis", "cinco vs ocho", "tres vs trece"):
 - Ask once: "Disculpe, ¿fue siete o seis?" / "Sorry, was that seven or six?"
