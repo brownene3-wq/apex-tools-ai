@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 35;
+export const PROMPT_VERSION = 36;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -596,20 +596,12 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // PlayHT 'Jennifer' — different architecture from ElevenLabs, often rated
-      // as THE most human-sounding female voice across blind-test benchmarks.
-      // Built specifically to clear the uncanny valley.
-      provider: 'playht',
-      voiceId: client.voice_id || 'jennifer',
-      // Play 3.0 Mini is their fast, multilingual streaming model — handles
-      // English + Spanish natively without quality drop.
-      model: 'PlayHT2.0-turbo',
-      speed: 1.0,
-      temperature: 0.5,
-      emotion: 'female_happy',
-      voiceGuidance: 3,
-      styleGuidance: 20,
-      textGuidance: 1,
+      // OpenAI TTS — newest TTS-1-HD model. Ranked among the most natural-
+      // sounding voices in industry tests, handles Spanish + English fluently,
+      // and is the most reliable streaming TTS available (OpenAI's
+      // infrastructure is built for production scale).
+      provider: 'openai',
+      voiceId: client.voice_id || 'shimmer',
     },
     server: { url: 'https://apextoolsai.com/api/webhooks/vapi' },
     // Wait longer before AI grabs the turn — important for phone numbers and names.
