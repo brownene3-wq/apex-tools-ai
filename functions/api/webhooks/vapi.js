@@ -345,7 +345,7 @@ export async function onRequestPost(context) {
     const utterance = msg.transcript || msg.transcriptText || '';
     // Comprehensive Spanish detection — handles code-switched Spanglish like
     // "Para hacer un appointment" by checking for any Spanish-distinct word.
-    const spanishRe = /[áéíóúñ¿¡]|\b(?:hola|gracias|disculpe|perd[oó]n|cita|dolor|sangrado|quiero|quisiera|necesito|qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|cu[aá]nto|d[oó]nde|qui[eé]n|hablar|espa[nñ]ol|ayuda|llamar|tel[eé]fono|n[uú]mero|hoy|ma[nñ]ana|urgente|tengo|estoy|est[aá]|soy|tambi[eé]n|cu[ií]dese|usted|ustedes|nosotros|dentista|doctora|m[eé]dico|emergencia|sangre|muela|diente|por\s+favor)\b/i;
+    const spanishRe = /[¿¡]|\b(?:hola|gracias|disculpe|perd[oó]n|cita|dolor|sangrado|quiero|quisiera|necesito|qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|cu[aá]nto|d[oó]nde|qui[eé]n|hablar|espa[nñ]ol|ayuda|llamar|tel[eé]fono|n[uú]mero|hoy|ma[nñ]ana|urgente|tengo|estoy|est[aá]|soy|tambi[eé]n|cu[ií]dese|usted|ustedes|nosotros|dentista|doctora|m[eé]dico|emergencia|sangre|muela|diente|por\s+favor)\b/i;
     const lang = spanishRe.test(utterance) ? 'es' : 'en';
     const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
@@ -604,21 +604,33 @@ export async function onRequestPost(context) {
             timeStrES = apptDate.toLocaleString('es-US', { weekday: 'long', hour: 'numeric', minute: 'numeric', timeZone: tz });
           } catch { timeStrEN = 'the time we just confirmed'; timeStrES = 'la hora que confirmamos'; }
         }
-        const successMsg = anySent
-          ? `URGENT_ALERT_SENT. Appointment is BOOKED in the dashboard for the time the caller agreed to. Speak ONE language only matching the call language. The caller needs to hear (a) confirmation their appointment is set, (b) that the office is also being notified, (c) a warm closing.
+        // Distinguish callback request from true urgent dental case so the
+        // closing message uses the right language.
+        const isCallback = /callback|call back|llamar de regreso|que (?:me )?llamen|call me back|regarding|inquiry|pricing|insurance|hours|location/i.test(
+          (args.appointmentType || '') + ' ' + (reason || '')
+        );
 
-If call was in ENGLISH say exactly: "Perfect — I have you down for ${timeStrEN || 'the time we just confirmed'} as an urgent visit, and I've notified the office so they're expecting you. If anything changes they'll call you right back. Take care, and we'll see you soon."
+        const successMsg = isCallback
+          ? `CALLBACK_LOGGED. This is a callback request, NOT an urgent dental appointment. The office has been notified. End the call by calling endCall with the closing line as the message parameter, in the call's locked language ONLY (not both).
 
-If call was in SPANISH say exactly: "Perfecto — lo tengo apuntado para ${timeStrES || 'la hora que confirmamos'} como cita urgente, y ya notifiqué a la oficina para que lo estén esperando. Si algo cambia, lo llaman de regreso. Cuídese mucho, lo esperamos."
+ENGLISH closing: "Perfect — I'll have someone from the office call you back about ${reason || 'your inquiry'}. Thank you for calling ${client.business_name || 'us'} — have a great day!"
 
-Pick ONE language. Do NOT say both. Then end the call. Do NOT call bookAppointment — the urgent appointment is already saved.`
-          : `URGENT_NOTED. Notification channels are NOT configured for this practice — but the appointment IS saved in the dashboard. Speak ONE language only matching the call language.
+SPANISH closing: "Perfecto — pediré que alguien de la oficina lo llame sobre ${reason || 'su consulta'}. Gracias por llamar a ${client.business_name || 'nosotros'} — que tenga un buen día."
+
+Do NOT say "appointment", "urgent visit", "we'll see you soon" — those are wrong for a callback.`
+          : (anySent
+            ? `URGENT_ALERT_SENT. Appointment is BOOKED in the dashboard. End the call by calling endCall with the closing line as the message parameter, in the call's locked language ONLY (not both).
+
+ENGLISH closing: "Perfect — I have you down for ${timeStrEN || 'the time we just confirmed'} as an urgent visit, and I've notified the office so they're expecting you. If anything changes they'll call you right back. Take care, and we'll see you soon."
+
+SPANISH closing: "Perfecto — lo tengo apuntado para ${timeStrES || 'la hora que confirmamos'} como cita urgente, y ya notifiqué a la oficina para que lo estén esperando. Si algo cambia, lo llaman de regreso. Cuídese mucho, lo esperamos."
+
+Do NOT call bookAppointment — the urgent appointment is already saved.`
+            : `URGENT_NOTED. Notification channels not configured but the appointment IS saved in the dashboard. End the call by calling endCall with the closing line in the locked language.
 
 ENGLISH: "I have you down for ${timeStrEN || 'the time we agreed on'} as an urgent visit. The office will see this and call you back to confirm. Take care."
 
-SPANISH: "Lo tengo apuntado para ${timeStrES || 'la hora que acordamos'} como cita urgente. La oficina lo va a ver y lo llamarán para confirmar. Cuídese."
-
-Pick ONE. Do NOT say both. Then end the call.`;
+SPANISH: "Lo tengo apuntado para ${timeStrES || 'la hora que acordamos'} como cita urgente. La oficina lo va a ver y lo llamarán para confirmar. Cuídese."`);
         responses.push({ toolCallId: fc.id, result: successMsg });
       } else {
         responses.push({ toolCallId: fc.id, result: 'OK' });
