@@ -441,7 +441,13 @@ async function loadOverview() {
 
 // ---- CALLS ----
 async function loadCalls() {
-  const q = document.getElementById('callQ').value;
+  // Chrome often autofills the search input with a remembered email on first
+  // section render. If the value was set by autofill (not user typing), clear
+  // it so the call list doesn't filter to zero. We track whether the user has
+  // actually focused/typed in the field via window._callQTouched.
+  const callQEl = document.getElementById('callQ');
+  if (callQEl && !window._callQTouched) callQEl.value = '';
+  const q = callQEl.value;
   const lang = document.getElementById('callLang').value;
   const urgent = document.getElementById('callUrgent').value;
   const params = new URLSearchParams({ limit: '100', q, lang, urgent });
@@ -466,7 +472,8 @@ async function loadCalls() {
   if (id === 'callRefresh') el?.addEventListener('click', loadCalls);
   else el?.addEventListener('change', loadCalls);
 });
-document.getElementById('callQ')?.addEventListener('input', () => clearTimeout(window._cq) || (window._cq = setTimeout(loadCalls, 400)));
+document.getElementById('callQ')?.addEventListener('input', () => { window._callQTouched = true; clearTimeout(window._cq); window._cq = setTimeout(loadCalls, 400); });
+document.getElementById('callQ')?.addEventListener('focus', () => { window._callQTouched = true; });
 
 // ---- CONFIGURE ----
 async function loadConfigure() {
