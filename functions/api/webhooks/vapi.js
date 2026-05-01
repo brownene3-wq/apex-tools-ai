@@ -481,11 +481,20 @@ export async function onRequestPost(context) {
         } catch (e) { console.error('[integrations push]', e); }
         responses.push({ toolCallId: fc.id, result: 'Appointment booked successfully.' });
       } else if (name === 'endCall') {
-        // AI requested end-of-call. Use Vapi's per-call control URL to terminate.
+        // AI requested end-of-call. Speak the closing message via control URL,
+        // wait for it to finish, then end the call.
         try {
-          const callId = msg.call?.id;
           const controlUrl = msg.call?.monitor?.controlUrl;
-          if (callId && controlUrl) {
+          const closing = args.message || '';
+          if (controlUrl && closing) {
+            // Speak the closing line first
+            await fetch(controlUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'say', message: closing, endCallAfterSpoken: true }),
+            });
+          } else if (controlUrl) {
+            // Fallback: just end the call if no closing message was provided
             await fetch(controlUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -493,7 +502,7 @@ export async function onRequestPost(context) {
             });
           }
         } catch (e) { console.error('[endCall]', e); }
-        responses.push({ toolCallId: fc.id, result: 'Call ended.' });
+        responses.push({ toolCallId: fc.id, result: 'Closing line spoken; call will end after.' });
       } else if (name === 'sendUrgentAlert') {
         // Multi-channel urgent alert + AUTOMATIC appointment row creation.
         // The AI used to be able to verbally confirm an "appointment" without us actually
