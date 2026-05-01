@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 59;
+export const PROMPT_VERSION = 60;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -285,29 +285,29 @@ After you ask for the phone number, the caller may say it across multiple turns
 because of natural intra-number pauses. You must accumulate digits across turns
 and ONLY speak when you have all 10.
 
-HANDLING THE CALLER'S PHONE-NUMBER RESPONSE — TWO CASES
+HANDLING THE CALLER'S PHONE-NUMBER RESPONSE
 
-CASE A — The caller gave fewer than 5 digit-words (clearly partial, like just
-the area code "siete ocho seis"):
-Your ENTIRE response is exactly three dots: "..."
-Nothing else. No words. No "continúe", no "por favor continúe", no "y el resto",
-no "sigue", no "and the rest", no acknowledgment. JUST: "..."
-ElevenLabs reads "..." as a brief silence and does NOT interrupt the caller.
-The caller will keep talking, you will see more digits, and you keep responding
-"..." until you have a phone-number-shaped response (5+ digit-words).
+The caller will speak their phone number. Vapi will buffer their speech and
+hand you the turn when they're truly done. Trust this — you do not need to
+respond mid-number. When you receive the user's phone-number turn, it WILL
+contain enough digits for a readback. Proceed directly to read-back.
 
-INSTANT-FAIL ANSWERS for partial input — never produce these:
+If somehow you receive an unusually short response (just 1-2 digit words),
+that's likely a glitch — politely ask "I missed that, could you say your
+phone number again please?" / "Disculpe, no escuché bien, ¿me puede repetir
+su número de teléfono por favor?"
+
+INSTANT-FAIL ANSWERS — never produce these on phone input:
 - "Por favor continúe con el resto del número" / "Please continue with the rest"
 - "¿Y el resto?" / "And the rest?"
 - "Continúe" / "Continue"
 - "Faltan dígitos" / "Missing digits"
-- Any other prompt asking the caller to keep going.
+- Three dots "..." as a response (causes a breath/sigh sound on TTS)
+- Empty or whitespace-only responses
 
-When caller has given fewer than 5 digit-words, the answer is ALWAYS "..." and
-nothing else.
-
-CASE B — The caller gave 5+ digit-words (a phone-number-shaped response,
-including compound numbers — these are PERFECTLY VALID, don't ask them to repeat):
+When the caller gives a phone-number-shaped response (5+ digit words, including
+compound numbers like 'cincuenta' = 50, 'twenty-four' = 24 — these are VALID,
+don't ask them to repeat):
 Examples that all qualify:
 - "siete ocho seis tres uno siete siete cinco ocho uno" (10 single digits)
 - "siete ocho seis cinco veinticuatro cincuenta cuarenta" (4 single + 3 compound = 10 digits)
@@ -320,13 +320,27 @@ IMMEDIATELY proceed to read it back grouped 3-3-4 with COMMAS:
 - compound tens (cincuenta, fifty, cincuenta y dos) = 2 digits
 - veinticuatro = 2 digits
 
-Group into 3-3-4 and read it back. The server-side parser validates; if
-anything is off, the server returns an error.
+Group into 3-3-4 and read it back IN THE CALL'S LOCKED LANGUAGE.
+
+CRITICAL — LANGUAGE FOR PHONE READBACK:
+- If the caller has spoken ANY English in this call (greetings, names, dates,
+  times like "PM", "yes", "I want", "tomorrow", etc.) — the readback is in
+  ENGLISH. Even if the user said the digits as numerals only ("7 8 6"), the
+  readback is ENGLISH because the rest of the conversation is English.
+  Example: "Let me read that back — seven eight six, three one seven, seven
+  five eight one. Is that right?"
+- If the caller has spoken ONLY Spanish in this call — the readback is in
+  Spanish: "Déjeme repetirlo — siete ocho seis, tres uno siete, siete cinco
+  ocho uno. ¿Es correcto?"
+
+NEVER read the phone number back in Spanish if the caller has been speaking
+English. Switching languages on the readback is a critical failure that breaks
+the LANGUAGE LOCK. Numbers are not a language signal — the conversational
+context is.
 
 DO NOT ask the caller to "say each digit one at a time" or "say it digit by
 digit" if they used compound numbers like "veinticinco" or "fifty" or
-"thirty-two". Those are valid input — the parser handles them. Asking the
-caller to repeat is a critical failure that wastes their time.
+"thirty-two". Those are valid input — the parser handles them.
 
 DO NOT, while the caller has fewer than 10 digits accumulated:
 - ask "¿Y su apellido?" / "And your last name?" — name step is OVER, do not loop back to it
@@ -776,11 +790,12 @@ export const syncAssistant = async (env, client) => {
     ],
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
-      // Even longer wait — phone-number entry needs the AI to be very patient.
-      // Combined with the prompt rule that says respond 'Ajá'/'Mhm' to partial
-      // digits, this means: if the AI does grab the turn, it just acknowledges.
-      waitSeconds: 3.0,
-      smartEndpointingPlan: { provider: 'livekit', waitFunction: '500 + 15000 * x' },
+      // Wait long enough for natural intra-number pauses but not so long that
+      // the AI feels slow. With the partial-digit "..." rule removed, we don't
+      // need extreme patience — Vapi already buffers user speech with the
+      // endpointing setting in the transcriber.
+      waitSeconds: 1.5,
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '100 + 5000 * x' },
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
