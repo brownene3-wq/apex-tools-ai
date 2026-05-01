@@ -858,8 +858,14 @@ export const syncAssistant = async (env, client) => {
           type: 'function',
           function: {
             name: 'endCall',
-            description: 'End the phone call after the caller has confirmed they don\'t need anything else. Use ONLY after delivering the closing line and the caller has said no/nada/that\'s it.',
-            parameters: { type: 'object', properties: {}, required: [] },
+            description: 'End the phone call. You MUST pass the closing line as the message parameter — the system speaks it then hangs up. Match the locked language.',
+            parameters: {
+              type: 'object',
+              properties: {
+                message: { type: 'string', description: 'The closing line to speak before hanging up. Match the call language. Example EN: "Thank you for calling Hollywood Smile Dental. Have a great day, and we look forward to seeing you!" Example ES: "Gracias por llamar a Hollywood Smile Dental. Que tenga un buen día, y lo esperamos pronto."' },
+              },
+              required: ['message'],
+            },
           },
         },
         {
