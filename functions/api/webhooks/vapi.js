@@ -480,6 +480,20 @@ export async function onRequestPost(context) {
           });
         } catch (e) { console.error('[integrations push]', e); }
         responses.push({ toolCallId: fc.id, result: 'Appointment booked successfully.' });
+      } else if (name === 'endCall') {
+        // AI requested end-of-call. Use Vapi's per-call control URL to terminate.
+        try {
+          const callId = msg.call?.id;
+          const controlUrl = msg.call?.monitor?.controlUrl;
+          if (callId && controlUrl) {
+            await fetch(controlUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'end-call' }),
+            });
+          }
+        } catch (e) { console.error('[endCall]', e); }
+        responses.push({ toolCallId: fc.id, result: 'Call ended.' });
       } else if (name === 'sendUrgentAlert') {
         // Multi-channel urgent alert + AUTOMATIC appointment row creation.
         // The AI used to be able to verbally confirm an "appointment" without us actually

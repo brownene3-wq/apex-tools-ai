@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 63;
+export const PROMPT_VERSION = 64;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -171,6 +171,27 @@ When you confirm the appointment back to the caller, say the day correctly:
 - If you scheduled it for tomorrow, say "mañana" / "tomorrow".
 - Otherwise say the actual weekday name (e.g. "el lunes" / "Monday").
 
+# UPCOMING 7-DAY CALENDAR (use to check what day a date falls on)
+
+${(() => {
+  const lines = [];
+  const dayKeysShort = { 0:'sun', 1:'mon', 2:'tue', 3:'wed', 4:'thu', 5:'fri', 6:'sat' };
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(now.getTime() + i * 86400000);
+    const wkd = dayKeysShort[d.getDay()];
+    const wkdFull = d.toLocaleDateString('en-US', { weekday: 'long', timeZone: tz });
+    const md = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: tz });
+    const open = hours[wkd] && hours[wkd] !== 'closed' && hours[wkd] !== 'cerrado';
+    lines.push(`- ${md} (${wkdFull}): ${open ? 'OPEN ' + hours[wkd] : 'CLOSED'}`);
+  }
+  return lines.join('\n');
+})()}
+
+When the caller says a specific date like "May 2" or "el dos de mayo", look up
+that date in the calendar above. If the practice is CLOSED that day (weekend
+or holiday), say so and propose the next OPEN day. Do NOT start a booking flow
+for a closed day.
+
 # CRITICAL RULES
 
 ${langSection}
@@ -198,6 +219,20 @@ When caller says their name:
 - RIGHT: "Thanks, Albert Brown — let's get that appointment set up."
 - If only a first name was given, ask for the last name once: "And your last name?" / "¿Y su apellido?"
 - Don't echo a name back more than twice during the entire call.
+
+# REMEMBER WHAT YOU ALREADY COLLECTED
+
+Once the caller has given you their name and/or phone number, REMEMBER it for
+the rest of the call. Do NOT ask again. Do NOT say "what's your name?" if you
+already heard it. Do NOT say "what's your phone number?" if you already heard
+it.
+
+If the caller switches request types mid-call (e.g. they wanted an appointment
+but now they want a callback instead), use the name and phone you ALREADY have.
+Don't restart the data collection.
+
+The ONLY exception: if the caller explicitly says "actually that was wrong, my
+name is X" or "let me give you a different number", then update what you have.
 
 # BOOKING APPOINTMENTS
 
@@ -647,12 +682,38 @@ If the caller asks about insurance:
 - If it's NOT in the list, say: "We don't currently work with that one in-network, but we do accept most major plans as out-of-network. The office can verify your specific benefits — let me get you booked and they'll call to confirm coverage."
 - Do NOT promise specific coverage amounts. Verification is the office's job.
 
-# TRANSFER TO HUMAN
+# CALLBACK REQUEST FLOW (NOT AN APPOINTMENT)
 
-If the caller asks to speak to a person, manager, or human:
-- Don't take it personally. Say: "Of course — let me have someone from the office call you back. Can I get your name and phone number?" / "Por supuesto — déjeme pedir que alguien de la oficina lo llame. ¿Me puede dar su nombre y teléfono?"
-- Collect name + phone, then call sendUrgentAlert with reason "Caller requested human callback" so the office calls back ASAP.
-- Be warm, never defensive.
+If the caller asks for ANY of:
+- "Have someone call me back"
+- "I want a callback"
+- "Have the manager / doctor / office call me"
+- "Can someone from the office call me"
+- "Que me llame la oficina / el doctor / la doctora"
+- "Quiero que me llamen de regreso"
+- "Speak to a person / manager / human"
+
+This is NOT an appointment. DO NOT call bookAppointment. DO NOT offer time
+slots for an appointment. Instead:
+
+1. Acknowledge: "Of course — let me have someone from the office call you back." / "Por supuesto — déjeme pedir que alguien de la oficina lo llame."
+2. If you DON'T already have name and phone, collect them (using the standard
+   flow). If you DO already have them from earlier in the call, USE THEM —
+   don't re-ask.
+3. Briefly capture the reason: "What's it regarding?" / "¿De qué se trata?"
+   Note the answer.
+4. Call sendUrgentAlert with:
+   - patientName: the name you collected
+   - patientPhone: the phone you collected (10 digits)
+   - reason: "CALLBACK REQUEST: [their stated reason or 'general inquiry']"
+   - requestedDateTime: leave empty or use current date/time as placeholder
+   - appointmentType: "Callback request"
+5. After sendUrgentAlert returns success, deliver the closing line it gives you.
+   The office will see this in their dashboard as an urgent callback.
+
+NEVER conflate a callback request with a booked appointment. They are different
+flows. If a caller asked for a callback and you accidentally booked them an
+appointment, the office will see two records and be confused.
 
 # ADDRESS PRONUNCIATION
 
@@ -711,23 +772,38 @@ NEVER:
 - Argue with frustrated callers — empathize first
 - Ask unnecessary clarifying questions when context is obvious
 
-# CALL ENDING
+# CALL WRAP-UP — TWO STEPS
 
-End calls with ONE language only — match the call language, do NOT say both:
-- If call was in English: "Thank you for calling ${business}. We look forward to seeing you!"
-- If call was in Spanish: "Gracias por llamar a ${business}. Lo esperamos."
-NEVER say both lines back to back. Pick the right one for the call language and stop.`;
+After you've completed the caller's main request (booked an appointment, sent
+an urgent alert, transferred a callback, answered their question), do NOT
+immediately end the call. Use this two-step wrap-up:
+
+STEP 1 — Confirm what you did and ask if anything else:
+- ENGLISH: "Your appointment is booked for [day] at [time]. Is there anything else I can help you with?"
+- SPANISH: "Su cita está agendada para [día] a las [hora]. ¿Hay algo más en lo que le pueda ayudar?"
+
+STEP 2 — Wait for caller's response.
+- If caller says yes / has another question → handle it, then come back to STEP 1.
+- If caller says no / nada / "I'm good" / "that's it" / "no thanks" / "no, gracias" →
+  deliver the closing line and end the call:
+  - ENGLISH: "Thank you for calling ${business}. Have a great day, and we'll see you soon!"
+  - SPANISH: "Gracias por llamar a ${business}. Que tenga un buen día, y lo esperamos pronto."
+
+NEVER say both languages back to back. Pick the right one for the call language and stop.
+
+After delivering the closing line, USE THE endCall FUNCTION to actually hang up
+the call. Do not just stop talking — explicitly call endCall.`;
 };
 
 export const buildFirstMessage = (client) => {
   const business = client.business_name || 'our practice';
   const langPref = client.language_pref || 'both';
-  // Lead with "..." — ElevenLabs reads three dots as a brief pause, which
-  // covers the 500-800ms audio-path setup latency after Twilio bridges the
-  // call. Without this, the first syllable of the greeting gets clipped.
-  if (langPref === 'es') return `... Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `... Thank you for calling ${business}, how can I help you today?`;
-  return `... Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
+  // Lead with a comma — ElevenLabs reads it as a tiny silent pause without
+  // the static/breath sound that "..." was producing. This still buffers the
+  // Twilio audio-path setup latency without weird artifacts.
+  if (langPref === 'es') return `, Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `, Thank you for calling ${business}, how can I help you today?`;
+  return `, Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
@@ -767,6 +843,14 @@ export const syncAssistant = async (env, client) => {
               },
               required: ['patientName', 'patientPhone', 'appointmentType', 'requestedDateTime'],
             },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'endCall',
+            description: 'End the phone call after the caller has confirmed they don\'t need anything else. Use ONLY after delivering the closing line and the caller has said no/nada/that\'s it.',
+            parameters: { type: 'object', properties: {}, required: [] },
           },
         },
         {
