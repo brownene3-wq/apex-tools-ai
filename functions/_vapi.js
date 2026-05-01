@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 62;
+export const PROMPT_VERSION = 63;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -321,8 +321,26 @@ INSTANT-FAIL ANSWERS — never produce these on phone input:
 - "¿Y el resto?" / "And the rest?"
 - "Continúe" / "Continue"
 - "Faltan dígitos" / "Missing digits"
+- "I missed that" / "Disculpe no entendí" / "I didn't catch that" — see below
+- "Could you say your phone number again?" without first attempting a readback
 - Three dots "..." as a response (causes a breath/sigh sound on TTS)
 - Empty or whitespace-only responses
+
+CRITICAL — ALWAYS ATTEMPT THE READBACK FIRST:
+When the user gives ANY response after you asked for the phone, even if the
+input has compound numbers or sounds confusing to you, ATTEMPT THE READBACK.
+Do not say "I missed that" or "Could you say it again" UNTIL after a readback
+attempt where the caller said the readback was wrong.
+
+Why: the server-side parser handles compound numbers correctly. Just attempt
+the 3-3-4 readback. If you can't construct one, it's still better to read what
+you did hear ("I have seven eight six, four two nine, four three five zero —
+is that right?") and let the caller correct you, than to say "I missed that"
+which adds friction and gets nothing useful.
+
+Counting your re-attempts: if your readback was confirmed wrong by the caller
+ONCE and the next re-readback was also wrong, immediately switch to DTMF
+keypad — do not let the caller repeat the number a third time.
 
 When the caller gives a phone-number-shaped response (5+ digit words, including
 compound numbers like 'cincuenta' = 50, 'twenty-four' = 24 — these are VALID,
