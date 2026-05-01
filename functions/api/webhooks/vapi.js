@@ -345,7 +345,7 @@ export async function onRequestPost(context) {
     const utterance = msg.transcript || msg.transcriptText || '';
     // Comprehensive Spanish detection — handles code-switched Spanglish like
     // "Para hacer un appointment" by checking for any Spanish-distinct word.
-    const spanishRe = /[áéíóúñ¿¡]|\b(?:hola|gracias|por\s+favor|s[ií]|cita|dolor|sangrado|quiero|quisiera|necesito|para|hacer|qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|cu[aá]nto|d[oó]nde|qui[eé]n|hablar|espa[nñ]ol|ayuda|disculpe|perd[oó]n|llamar|tel[eé]fono|n[uú]mero|hoy|ma[nñ]ana|tarde|noche|d[ií]a|urgente|cuesta|tengo|estoy|est[aá]|soy|somos|esta|este|muy|mucho|tambi[eé]n|pero|sin|con|aqu[ií]|all[ií]|gracias|de\s+nada|adi[oó]s|cu[ií]dese|usted|ustedes|nosotros|me|le|los|las|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|dentista|doctora|m[eé]dico|emergencia|sangre|muela|diente)\b/i;
+    const spanishRe = /[áéíóúñ¿¡]|\b(?:hola|gracias|disculpe|perd[oó]n|cita|dolor|sangrado|quiero|quisiera|necesito|qu[eé]|c[oó]mo|cu[aá]l|cu[aá]ndo|cu[aá]nto|d[oó]nde|qui[eé]n|hablar|espa[nñ]ol|ayuda|llamar|tel[eé]fono|n[uú]mero|hoy|ma[nñ]ana|urgente|tengo|estoy|est[aá]|soy|tambi[eé]n|cu[ií]dese|usted|ustedes|nosotros|dentista|doctora|m[eé]dico|emergencia|sangre|muela|diente|por\s+favor)\b/i;
     const lang = spanishRe.test(utterance) ? 'es' : 'en';
     const controlUrl = msg.call?.monitor?.controlUrl || null;
     try {
