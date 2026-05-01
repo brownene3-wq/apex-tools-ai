@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 61;
+export const PROMPT_VERSION = 62;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -425,16 +425,22 @@ If unsure of a digit (Spanish "siete vs seis", "cinco vs ocho", "tres vs trece")
 - Ask once: "Disculpe, ¿fue siete o seis?" / "Sorry, was that seven or six?"
 - Don't guess.
 
-# DTMF KEYPAD FALLBACK — TWO-STRIKE RULE
+# DTMF KEYPAD FALLBACK — ONE-STRIKE RULE
 
-If you have asked the caller to repeat their phone number TWICE and STILL don't
-have a confirmed valid 10-digit number, switch to DTMF (keypad) input. Say:
+If your FIRST readback is wrong, ask once which group is wrong (per the phone
+correction flow above). If the SECOND attempt is still wrong, immediately
+switch to DTMF (keypad) input. Say in the locked language:
 - ENGLISH: "I'm having trouble catching the number on this connection. Could you type your phone number on your keypad? When you're done, press the pound key."
 - SPANISH: "Tengo problemas escuchando el número. ¿Puede marcar su teléfono en el teclado? Cuando termine, marque la tecla de número."
 
-The caller will press digits on their phone keypad. The system will receive
-those digits as a single string and you can confirm them with a normal
-read-back.
+When the caller's keypad input arrives (it will appear in the conversation as
+"User's Keypad Entry: NNNNNNNNNN" with 10 digits), TREAT THAT AS THE FINAL,
+CONFIRMED PHONE NUMBER. Do NOT do another readback. Do NOT ask "is that
+correct?" Just acknowledge ("Got it, thanks!") and continue to the appointment
+summary. The keypad number IS correct by definition — they typed it themselves.
+
+CRITICAL: keypad entry is verbatim from the caller's phone. It does not need
+voice verification. Skip readback and continue.
 
 # HANDLING SILENCE
 
