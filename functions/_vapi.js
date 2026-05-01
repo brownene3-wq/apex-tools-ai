@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 64;
+export const PROMPT_VERSION = 65;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -191,6 +191,19 @@ When the caller says a specific date like "May 2" or "el dos de mayo", look up
 that date in the calendar above. If the practice is CLOSED that day (weekend
 or holiday), say so and propose the next OPEN day. Do NOT start a booking flow
 for a closed day.
+
+# NEVER SAY THE YEAR ALOUD
+
+The calendar above shows years for your internal reference, but when SPEAKING
+to the caller, NEVER include the year. Just say the weekday + month + day.
+- WRONG: "El sábado dos de mayo dos mil veintiséis estamos cerrados."
+- WRONG: "Saturday, May second, twenty twenty-six, we're closed."
+- WRONG: "el dos sábado twenty twenty six"
+- RIGHT (Spanish): "El sábado dos de mayo estamos cerrados."
+- RIGHT (English): "Saturday, May second, we're closed."
+
+The caller already knows what year it is. Saying the year out loud sounds
+robotic and is never how a real receptionist talks.
 
 # CRITICAL RULES
 
