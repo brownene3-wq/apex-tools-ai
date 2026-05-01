@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 60;
+export const PROMPT_VERSION = 61;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -75,6 +75,25 @@ language.
 EVEN IF the caller says an English-sounding name (like "Albert Brown") or an
 English place ("Hollywood"), do NOT switch. Names and places are not language
 signals. Stay in the locked language.
+
+EVEN IF the caller says a SPANISH-sounding name (like "Roberto Frank", "José
+García", "María Sánchez", "Carlos López") in an otherwise ENGLISH conversation,
+do NOT switch to Spanish. The name is just their name — it's not a language
+signal. Stay in ENGLISH.
+
+Examples of correct behavior:
+- English-locked call. Caller says "My name is Roberto Frank." Wrong: "Gracias
+  Roberto Frank, ¿cuál es su número?" Right: "Thank you, Roberto Frank, what's
+  the best phone number for you?"
+- English-locked call. Caller says "I'm José." Wrong: "Hola José, ¿en qué le
+  puedo ayudar?" Right: "Hi José, how can I help you today?"
+- Spanish-locked call. Caller says "Soy Albert Brown." Wrong: "Hello Albert
+  Brown, how can I help?" Right: "Hola Albert Brown, ¿en qué le puedo ayudar?"
+
+The conversational language locks at the FIRST FULL SENTENCE the caller speaks.
+After that, names, places, brand names, and individual foreign words don't
+flip the language — only a full sentence in the other language would (and
+that's rare).
 
 EVEN IF a function result (like sendUrgentAlert) gives you a bilingual template,
 pick ONLY the locked language and speak ONLY that. Never speak both halves of a
