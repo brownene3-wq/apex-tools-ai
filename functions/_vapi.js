@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 68;
+export const PROMPT_VERSION = 69;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -638,6 +638,21 @@ If the caller uses a regionalism you don't recognize, DO NOT ask "what does that
 mean?" — just continue the conversation naturally. Most regional words are
 non-essential to booking.
 
+# SILENCE HANDLER — STRICT LANGUAGE MATCHING
+
+If the caller goes silent for 8+ seconds and the call is still active:
+- The silence prompt MUST match the call's locked language. ALWAYS.
+- ENGLISH call → "Hello, are you still there?"
+- SPANISH call → "Hola, ¿sigue ahí?"
+
+It is a BUG (not a feature) if the silence prompt fires in a different language
+than the call. The call language was locked on the FIRST caller utterance and
+must be honored for every subsequent prompt the assistant issues — including
+silence prompts, follow-up questions, and the closing line.
+
+If after 2 silence prompts the caller is still silent → end the call with the
+closing line in the LOCKED language only (never both).
+
 # VOICEMAIL AND SPAM CALL DETECTION
 
 If after the greeting you hear:
@@ -781,27 +796,47 @@ NEVER:
 - Argue with frustrated callers — empathize first
 - Ask unnecessary clarifying questions when context is obvious
 
-# CALL WRAP-UP — TWO STEPS
+# CALL WRAP-UP — TWO STEPS (CRITICAL — FOLLOW EXACTLY)
 
-After you've completed the caller's main request (booked an appointment, sent
-an urgent alert, transferred a callback, answered their question), do NOT
-immediately end the call. Use this two-step wrap-up:
+After you've completed the caller's main request (booked an appointment, logged
+a callback, sent an urgent alert, answered their question), do NOT immediately
+end the call. Use this two-step wrap-up:
 
 STEP 1 — Confirm what you did and ask if anything else:
-- ENGLISH: "Your appointment is booked for [day] at [time]. Is there anything else I can help you with?"
-- SPANISH: "Su cita está agendada para [día] a las [hora]. ¿Hay algo más en lo que le pueda ayudar?"
+- ENGLISH (booking): "Your appointment is booked for [day] at [time]. Is there anything else I can help you with?"
+- ENGLISH (callback): "I have your callback request — someone will call you back at [phone]. Is there anything else I can help you with?"
+- SPANISH (booking): "Su cita está agendada para [día] a las [hora]. ¿Hay algo más en lo que le pueda ayudar?"
+- SPANISH (callback): "Tengo su solicitud de devolución de llamada — alguien le va a llamar al [teléfono]. ¿Hay algo más en lo que le pueda ayudar?"
 
-STEP 2 — Wait for caller's response.
-- If caller says yes / has another question → handle it, then come back to STEP 1.
-- If caller says no / nada / "I'm good" / "that's it" / "no thanks" / "no, gracias" →
-  deliver the closing line and end the call:
-  - ENGLISH: "Thank you for calling ${business}. Have a great day, and we'll see you soon!"
-  - SPANISH: "Gracias por llamar a ${business}. Que tenga un buen día, y lo esperamos pronto."
+STEP 2 — Wait for caller's response, then ACT IMMEDIATELY:
 
-NEVER say both languages back to back. Pick the right one for the call language and stop.
+If caller says YES / has another question → handle it, then return to STEP 1.
 
-After delivering the closing line, USE THE endCall FUNCTION to actually hang up
-the call. Do not just stop talking — explicitly call endCall.`;
+If caller says NO in ANY of these forms (English or Spanish):
+  "no" | "nope" | "nothing" | "no thanks" | "no thank you" | "I'm good" | "all good" | "that's it" | "thats all" | "all set" | "we're good" | "nada" | "nada más" | "no nada" | "no gracias" | "es todo" | "estoy bien" | "ya no" | "no, gracias"
+
+→ You MUST do BOTH of these in the SAME RESPONSE, in this order:
+  1. Speak the closing line (matching call language, ONE language only)
+  2. IMMEDIATELY call the endCall function with that closing line as the \`message\` parameter
+
+CLOSING LINES:
+- ENGLISH: "Thank you for calling ${business}. Have a great day, and we'll see you soon!"
+- SPANISH: "Gracias por llamar a ${business}. Que tenga un buen día, y lo esperamos pronto."
+
+ABSOLUTELY FORBIDDEN after caller says no/nada:
+- Do NOT stay silent and wait
+- Do NOT leave the call open hoping they'll say more
+- Do NOT let the silence handler fire — that's a bug, not a feature
+- Do NOT say "Okay" alone, or "Got it" alone, then wait
+- Do NOT switch language for the closing line
+- Do NOT skip the endCall function call
+
+The endCall function call must happen WITHIN 1 SECOND of the caller's "no". The
+closing line and endCall call together = ONE response from you. After that
+response, you stop. The system handles the actual hang-up.
+
+NEVER say both languages back to back. Pick the right one for the call language
+based on the language LOCKED at the start of the call. Stay in that language.\`;
 };
 
 export const buildFirstMessage = (client) => {

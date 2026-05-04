@@ -511,18 +511,48 @@ export async function onRequestPost(context) {
         // in their dashboard regardless of whether the AI also calls bookAppointment.
         await logUsage(env, client.id, 'urgent_escalation', args);
         let smsOk = false, emailOk = false, apptCreated = false, apptId = null;
+        let callbackId = null;
         const reason = args.reason || args.summary || 'Urgent caller on the line';
         const callerNumber = args.callerNumber || args.patientPhone || '';
         const callerName = args.patientName || '';
         const businessName = client.business_name || 'your practice';
+
+        // Detect EARLY: is this a callback request (caller asked to be called back)
+        // or a true urgent dental emergency? Callbacks go to the `callbacks` table,
+        // urgents go to `appointments` with status='urgent'.
+        const isCallback = /callback|call back|call me back|llamar de regreso|que (?:me )?llamen|talk to (?:the )?(manager|doctor|dentist|owner)|hablar con (?:el|la) (gerente|doctor|dentista|due[nñ]o)|regarding|inquiry|pricing|insurance question|hours|location|question about/i.test(
+          (args.appointmentType || '') + ' ' + (reason || '')
+        );
 
         // Comprehensive phone parsing — handles any natural format
         const digits = parsePhoneNumber(args.patientPhone || args.callerNumber);
         const validPhone = digits !== null;
         const validName = (callerName || '').trim().length >= 2;
 
-        // ---- Insert appointment row (status='urgent') if we have name + phone ----
-        if (validPhone && validName) {
+        // ---- Callback path: insert into `callbacks` table, NOT appointments ----
+        if (isCallback && validPhone) {
+          try {
+            callbackId = 'cb_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+            // Detect language from transcript hints
+            const cbLang = /\b(hola|gracias|cita|llamar|por favor|gerente|dentista)\b/i.test(reason + ' ' + (args.appointmentType || '')) ? 'es' : 'en';
+            await env.DB.prepare(
+              `INSERT INTO callbacks (id, client_id, call_log_id, caller_name, caller_phone,
+                 reason, language, preferred_time, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+            ).bind(
+              callbackId, client.id, msg.call?.id || null,
+              (callerName || '').trim() || null, '+1' + digits,
+              reason, cbLang, args.preferredTime || null, Date.now()
+            ).run();
+            await logUsage(env, client.id, 'callback_logged', { name: callerName, reason });
+          } catch (e) {
+            console.error('[callback insert]', e);
+            await logUsage(env, client.id, 'callback_insert_failed', { err: String(e) });
+          }
+        }
+
+        // ---- Insert appointment row (status='urgent') if we have name + phone AND it's NOT a callback ----
+        if (validPhone && validName && !isCallback) {
           apptId = newId('appt');
           // Default: ASAP (now). If AI passed a requestedDateTime, use that.
           const apptAt = args.requestedDateTime ? new Date(args.requestedDateTime).getTime() : Date.now();
@@ -604,12 +634,6 @@ export async function onRequestPost(context) {
             timeStrES = apptDate.toLocaleString('es-US', { weekday: 'long', hour: 'numeric', minute: 'numeric', timeZone: tz });
           } catch { timeStrEN = 'the time we just confirmed'; timeStrES = 'la hora que confirmamos'; }
         }
-        // Distinguish callback request from true urgent dental case so the
-        // closing message uses the right language.
-        const isCallback = /callback|call back|llamar de regreso|que (?:me )?llamen|call me back|regarding|inquiry|pricing|insurance|hours|location/i.test(
-          (args.appointmentType || '') + ' ' + (reason || '')
-        );
-
         const successMsg = isCallback
           ? `CALLBACK_LOGGED. This is a callback request, NOT an urgent dental appointment. The office has been notified. End the call by calling endCall with the closing line as the message parameter, in the call's locked language ONLY (not both).
 

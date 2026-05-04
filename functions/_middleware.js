@@ -1,4 +1,28 @@
-// Cloudflare Pages global middleware — runs on every request
+// Cloudflare Pages global middleware
+
+// Run schema migrations once per worker. Idempotent CREATE IF NOT EXISTS.
+let _callbacksMigrated = false;
+async function ensureCallbacksTable(env) {
+  if (_callbacksMigrated || !env?.DB) return;
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS callbacks (
+        id TEXT PRIMARY KEY, client_id TEXT NOT NULL, call_log_id TEXT,
+        caller_name TEXT, caller_phone TEXT NOT NULL, reason TEXT,
+        language TEXT DEFAULT 'en', preferred_time TEXT,
+        status TEXT DEFAULT 'new', notes TEXT,
+        created_at INTEGER NOT NULL, resolved_at INTEGER, resolved_by TEXT
+      )`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_callbacks_client ON callbacks(client_id)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_callbacks_status ON callbacks(status)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_callbacks_created ON callbacks(created_at DESC)`),
+    ]);
+    _callbacksMigrated = true;
+  } catch (e) { console.error('callbacks migration:', e?.message || e); }
+}
+
+// (kept old comment below)
+// — runs on every request
 // Handles: CORS, security headers, session loading, schema migrations
 
 let _migrationsRan = false;
@@ -30,6 +54,7 @@ export async function onRequest(context) {
   await ensureSchemaUpToDate(context.env);
   const { request, next, env } = context;
   const url = new URL(request.url);
+  await ensureCallbacksTable(env);
 
   // CORS preflight
   if (request.method === 'OPTIONS') {

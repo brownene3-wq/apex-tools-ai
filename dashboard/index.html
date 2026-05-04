@@ -46,6 +46,8 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
         <i data-lucide="layout-dashboard" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Overview</span></a>
       <a href="#calls" data-section="calls" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
         <i data-lucide="phone-incoming" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Call History</span></a>
+      <a href="#callbacks" data-section="callbacks" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
+        <i data-lucide="phone-call" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium flex-1">Callbacks</span><span id="cbBadge" class="hidden text-xs font-bold bg-accent-500 text-white px-2 py-0.5 rounded-full"></span></a>
       <a href="#configure" data-section="configure" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
         <i data-lucide="sliders-horizontal" class="w-5 h-5 nav-icon text-navy-400"></i><span class="font-medium">Configure AI</span></a>
       <a href="#calendar" data-section="calendar" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-navy-50 transition-colors">
@@ -119,6 +121,26 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
           <button id="callRefresh" class="px-4 py-2 bg-navy-900 text-white text-sm rounded-lg font-medium hover:bg-navy-800">Refresh</button>
         </div>
         <div id="callsTable" class="bg-white rounded-2xl border border-navy-100 overflow-hidden"></div>
+      </section>
+
+      <section id="section-callbacks" class="section hidden">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h1 class="font-display text-3xl font-extrabold text-navy-900">Callbacks</h1>
+            <p class="text-navy-600 text-sm mt-1">Customers who asked the AI to have someone call them back. Call them, then mark complete.</p>
+          </div>
+          <button id="cbAddBtn" class="hidden md:inline-flex items-center gap-2 bg-navy-900 hover:bg-navy-800 text-white text-sm font-semibold px-4 py-2 rounded-full">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add manually
+          </button>
+        </div>
+        <div id="cbStats" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+        <div class="bg-white rounded-2xl border border-navy-100 p-4 mb-4 flex flex-wrap gap-2">
+          <button data-cbfilter="new" class="cbFilter px-3 py-1.5 rounded-full text-xs font-semibold bg-accent-500 text-white">New</button>
+          <button data-cbfilter="in_progress" class="cbFilter px-3 py-1.5 rounded-full text-xs font-semibold bg-navy-100 text-navy-700 hover:bg-navy-200">In progress</button>
+          <button data-cbfilter="completed" class="cbFilter px-3 py-1.5 rounded-full text-xs font-semibold bg-navy-100 text-navy-700 hover:bg-navy-200">Completed</button>
+          <button data-cbfilter="all" class="cbFilter px-3 py-1.5 rounded-full text-xs font-semibold bg-navy-100 text-navy-700 hover:bg-navy-200">All</button>
+        </div>
+        <div id="cbList" class="space-y-3"></div>
       </section>
 
       <section id="section-configure" class="section hidden">
@@ -357,6 +379,13 @@ const api = async (url, opts={}) => {
 let user = null;
 let chart = null;
 
+// Register hashchange listener IMMEDIATELY (module scope) so the very first
+// click on a nav link routes correctly even before /api/auth/me responds.
+// Previously this lived inside init() — which meant if the user clicked
+// "Call History" before auth resolved, the hash changed but no loader fired
+// and they had to refresh to see their data.
+window.addEventListener('hashchange', routeSection);
+
 // ---- INIT ----
 async function init() {
   try {
@@ -373,7 +402,8 @@ async function init() {
   } catch { window.location.href = '/login.html'; return; }
   lucide.createIcons();
   routeSection();
-  window.addEventListener('hashchange', routeSection);
+  refreshCallbackBadge();
+  setInterval(refreshCallbackBadge, 60000);
   document.getElementById('signoutBtn').onclick = () => fetch('/api/auth/logout').then(() => location.href = '/');
   document.getElementById('signoutMobile').onclick = () => fetch('/api/auth/logout').then(() => location.href = '/');
 }
@@ -385,7 +415,7 @@ function routeSection() {
   if (target) target.classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('nav-active', n.dataset.section === hash));
   // Load data
-  ({ overview: loadOverview, calls: loadCalls, configure: loadConfigure, calendar: loadCalendar, reports: loadReports, billing: loadBilling, support: loadSupport, integrations: loadIntegrations, settings: loadSettings })[hash]?.();
+  ({ overview: loadOverview, calls: loadCalls, callbacks: loadCallbacks, configure: loadConfigure, calendar: loadCalendar, reports: loadReports, billing: loadBilling, support: loadSupport, integrations: loadIntegrations, settings: loadSettings })[hash]?.();
 }
 
 // ---- OVERVIEW ----
@@ -400,29 +430,66 @@ async function loadOverview() {
     { label: 'Total Captured', value: m.calls_total, icon: 'check-circle-2', color: 'text-accent-600' },
     { label: 'Appointments / 30d', value: m.appointments_month, icon: 'calendar-check', color: 'text-green-600' },
     { label: 'Urgent Calls / 7d', value: m.urgent_week, icon: 'bell-ring', color: 'text-red-600' },
+    { label: 'Pending Callbacks', value: m.pending_callbacks || 0, icon: 'phone-call', color: 'text-accent-600', href: '#callbacks' },
   ];
-  document.getElementById('overviewStats').innerHTML = stats.map(s => `
-    <div class="bg-white rounded-2xl border border-navy-100 p-5">
+  document.getElementById('overviewStats').innerHTML = stats.map(s => {
+    const inner = `
       <div class="flex items-center justify-between mb-2">
         <span class="text-xs font-semibold text-navy-500 uppercase tracking-wide">${escapeHtml(s.label)}</span>
         <i data-lucide="${s.icon}" class="w-4 h-4 ${s.color}"></i>
       </div>
-      <div class="font-display text-3xl font-extrabold ${s.color}">${s.value}</div>
-    </div>`).join('');
+      <div class="font-display text-3xl font-extrabold ${s.color}">${s.value}</div>`;
+    return s.href
+      ? `<a href="${s.href}" class="bg-white rounded-2xl border border-navy-100 p-5 hover:border-accent-300 hover:shadow-sm transition-all block">${inner}</a>`
+      : `<div class="bg-white rounded-2xl border border-navy-100 p-5">${inner}</div>`;
+  }).join('');
 
-  // Daily chart
+  // Daily chart — fill in any missing days for the last 7 so x-axis is always
+  // complete, and add explicit tooltip config so hovering bars shows real values.
   if (chart) chart.destroy();
   const ctx = document.getElementById('overviewChart');
-  const labels = (data.daily || []).map(d => new Date(d.day).toLocaleDateString('en-US', { weekday: 'short' }));
-  const counts = (data.daily || []).map(d => d.calls);
-  const booked = (data.daily || []).map(d => d.booked || 0);
+  const dayMs = 86400000;
+  const todayDay = Math.floor(Date.now() / dayMs) * dayMs;
+  const dailyByDay = Object.fromEntries((data.daily || []).map(d => [Number(d.day), d]));
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const day = todayDay - i * dayMs;
+    const row = dailyByDay[day] || {};
+    days.push({
+      day,
+      label: new Date(day).toLocaleDateString('en-US', { weekday: 'short' }),
+      fullLabel: new Date(day).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+      calls: Number(row.calls) || 0,
+      booked: Number(row.booked) || 0,
+    });
+  }
+  const labels = days.map(d => d.label);
+  const counts = days.map(d => d.calls);
+  const booked = days.map(d => d.booked);
   chart = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [
       { label: 'Calls', data: counts, backgroundColor: '#1e3a5f', borderRadius: 6 },
       { label: 'Appointments Booked', data: booked, backgroundColor: '#f97316', borderRadius: 6 },
     ]},
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          enabled: true, mode: 'index', intersect: false,
+          backgroundColor: '#0f1e36', padding: 12, cornerRadius: 8,
+          titleFont: { size: 13, weight: 'bold' }, bodyFont: { size: 12 },
+          callbacks: {
+            title: (items) => days[items[0].dataIndex]?.fullLabel || items[0].label,
+            label: (item) => ` ${item.dataset.label}: ${item.parsed.y}`,
+          },
+        },
+      },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } } },
+    },
   });
 
   // Recent
@@ -715,6 +782,136 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
     loadSupport();
   } catch (err) { toast(err.message, 'error'); }
 });
+
+// ---- CALLBACKS ----
+let _cbFilter = 'new';
+
+async function loadCallbacks() {
+  const data = await api('/api/callbacks?status=' + (_cbFilter === 'all' ? 'all' : _cbFilter));
+  if (!data) return;
+  const cbs = data.callbacks || [];
+  const counts = data.counts || {};
+
+  const stats = [
+    { label: 'New', value: counts.new || 0, color: 'text-accent-600', bg: 'bg-accent-50' },
+    { label: 'In Progress', value: counts.in_progress || 0, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Completed', value: counts.completed || 0, color: 'text-green-600', bg: 'bg-green-50' },
+    { label: 'Total', value: counts.total || 0, color: 'text-navy-700', bg: 'bg-navy-50' },
+  ];
+  document.getElementById('cbStats').innerHTML = stats.map(s => `
+    <div class="${s.bg} rounded-xl p-4">
+      <div class="text-xs font-semibold uppercase tracking-wide ${s.color} opacity-70">${s.label}</div>
+      <div class="font-display text-2xl font-extrabold ${s.color} mt-1">${s.value}</div>
+    </div>`).join('');
+
+  const badge = document.getElementById('cbBadge');
+  if (badge) {
+    if (counts.new > 0) { badge.textContent = String(counts.new); badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+  }
+
+  const listEl = document.getElementById('cbList');
+  if (cbs.length === 0) {
+    listEl.innerHTML = `<div class="bg-white rounded-2xl border border-navy-100 py-12 text-center text-navy-500 text-sm">${_cbFilter === 'new' ? 'No new callback requests. When the AI captures one, it shows up here.' : 'No callbacks in this view.'}</div>`;
+    return;
+  }
+  listEl.innerHTML = cbs.map(cb => {
+    const phoneClean = (cb.caller_phone || '').replace(/[^+\d]/g, '');
+    const langFlag = cb.language === 'es' ? '🇲🇽 Spanish' : '🇺🇸 English';
+    const isResolved = ['completed', 'dismissed', 'no_answer'].includes(cb.status);
+    const statusClass = { new: 'bg-accent-100 text-accent-700', in_progress: 'bg-blue-100 text-blue-700', completed: 'bg-green-100 text-green-700', no_answer: 'bg-amber-100 text-amber-700', dismissed: 'bg-navy-100 text-navy-600' }[cb.status] || 'bg-navy-100 text-navy-700';
+    const statusLabel = { new: 'New', in_progress: 'In Progress', completed: 'Completed', no_answer: 'No Answer', dismissed: 'Dismissed' }[cb.status] || cb.status;
+    return `<div class="bg-white rounded-2xl border border-navy-100 p-5 ${isResolved ? 'opacity-75' : ''}">
+      <div class="flex items-start justify-between gap-4 mb-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-display font-bold text-lg text-navy-900">${escapeHtml(cb.caller_name || 'Unknown caller')}</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${statusClass}">${statusLabel}</span>
+          </div>
+          <a href="tel:${escapeHtml(phoneClean)}" class="text-accent-600 hover:text-accent-700 font-mono font-semibold text-sm inline-flex items-center gap-1.5">
+            <i data-lucide="phone" class="w-3.5 h-3.5"></i> ${escapeHtml(cb.caller_phone)}
+          </a>
+          <span class="text-xs text-navy-500 ml-3">${langFlag}</span>
+        </div>
+        <div class="text-right text-xs text-navy-500 whitespace-nowrap">${fmtDate(cb.created_at)}</div>
+      </div>
+      ${cb.reason ? `<div class="text-sm text-navy-700 bg-navy-50 rounded-lg p-3 mb-3"><strong class="text-navy-900">Reason:</strong> ${escapeHtml(cb.reason)}</div>` : ''}
+      ${cb.preferred_time ? `<div class="text-xs text-navy-600 mb-3"><strong>Preferred time:</strong> ${escapeHtml(cb.preferred_time)}</div>` : ''}
+      ${cb.notes ? `<div class="text-xs text-navy-700 bg-amber-50 rounded p-2 mb-3"><strong>Notes:</strong> ${escapeHtml(cb.notes)}</div>` : ''}
+      <div class="flex flex-wrap gap-2">
+        ${cb.status === 'new' ? `
+          <button data-cb="${cb.id}" data-action="status" data-value="in_progress" class="cbAction text-xs font-semibold px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-full">Mark In Progress</button>
+          <button data-cb="${cb.id}" data-action="status" data-value="completed" class="cbAction text-xs font-semibold px-3 py-1.5 bg-green-100 text-green-700 hover:bg-green-200 rounded-full">Mark Completed</button>
+          <button data-cb="${cb.id}" data-action="status" data-value="no_answer" class="cbAction text-xs font-semibold px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-full">No Answer</button>
+        ` : ''}
+        ${cb.status === 'in_progress' ? `
+          <button data-cb="${cb.id}" data-action="status" data-value="completed" class="cbAction text-xs font-semibold px-3 py-1.5 bg-green-100 text-green-700 hover:bg-green-200 rounded-full">Mark Completed</button>
+          <button data-cb="${cb.id}" data-action="status" data-value="no_answer" class="cbAction text-xs font-semibold px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-full">No Answer</button>
+        ` : ''}
+        ${cb.status === 'no_answer' ? `
+          <button data-cb="${cb.id}" data-action="status" data-value="new" class="cbAction text-xs font-semibold px-3 py-1.5 bg-accent-100 text-accent-700 hover:bg-accent-200 rounded-full">Try Again</button>
+          <button data-cb="${cb.id}" data-action="status" data-value="completed" class="cbAction text-xs font-semibold px-3 py-1.5 bg-green-100 text-green-700 hover:bg-green-200 rounded-full">Mark Completed</button>
+        ` : ''}
+        <button data-cb="${cb.id}" data-action="notes" class="cbAction text-xs font-semibold px-3 py-1.5 bg-navy-100 text-navy-700 hover:bg-navy-200 rounded-full">Add note</button>
+        ${!isResolved && cb.status !== 'new' ? `<button data-cb="${cb.id}" data-action="status" data-value="dismissed" class="cbAction text-xs font-semibold px-3 py-1.5 text-navy-500 hover:text-navy-700 ml-auto">Dismiss</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+document.querySelectorAll('.cbFilter').forEach(b => b.addEventListener('click', () => {
+  _cbFilter = b.dataset.cbfilter;
+  document.querySelectorAll('.cbFilter').forEach(x => {
+    const active = x.dataset.cbfilter === _cbFilter;
+    x.className = `cbFilter px-3 py-1.5 rounded-full text-xs font-semibold ${active ? 'bg-accent-500 text-white' : 'bg-navy-100 text-navy-700 hover:bg-navy-200'}`;
+  });
+  loadCallbacks();
+}));
+
+document.getElementById('cbList')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.cbAction');
+  if (!btn) return;
+  const id = btn.dataset.cb;
+  const action = btn.dataset.action;
+  try {
+    if (action === 'status') {
+      await api('/api/callbacks/' + id, { method: 'PATCH', body: JSON.stringify({ status: btn.dataset.value }) });
+      toast('Callback updated', 'success');
+    } else if (action === 'notes') {
+      const note = prompt('Add a note (e.g. "Left voicemail at 2pm")');
+      if (note === null) return;
+      await api('/api/callbacks/' + id, { method: 'PATCH', body: JSON.stringify({ notes: note }) });
+      toast('Note saved', 'success');
+    }
+    loadCallbacks();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+document.getElementById('cbAddBtn')?.addEventListener('click', async () => {
+  const name = prompt('Caller name (optional)');
+  if (name === null) return;
+  const phone = prompt('Phone number (required)');
+  if (!phone) return;
+  const reason = prompt('Reason for callback (optional)');
+  try {
+    await api('/api/callbacks', { method: 'POST', body: JSON.stringify({ caller_name: name || null, caller_phone: phone, reason: reason || null })});
+    toast('Callback added', 'success');
+    loadCallbacks();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+async function refreshCallbackBadge() {
+  try {
+    const data = await api('/api/callbacks?status=new&limit=1');
+    const badge = document.getElementById('cbBadge');
+    if (!badge || !data) return;
+    const n = data.counts?.new || 0;
+    if (n > 0) { badge.textContent = String(n); badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+  } catch {}
+}
+
 
 init();
 

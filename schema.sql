@@ -108,6 +108,30 @@ CREATE TABLE IF NOT EXISTS appointments (
 CREATE INDEX idx_appointments_client ON appointments(client_id);
 CREATE INDEX idx_appointments_at ON appointments(appointment_at);
 
+-- Callbacks (caller asked to be called back — separate from urgent emergencies)
+-- Created when AI captures a "have someone call me" request during a call.
+-- Practice owner sees these in dashboard, calls the customer back, marks complete.
+CREATE TABLE IF NOT EXISTS callbacks (
+  id TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL,
+  call_log_id TEXT,
+  caller_name TEXT,
+  caller_phone TEXT NOT NULL,
+  reason TEXT,
+  language TEXT DEFAULT 'en',
+  preferred_time TEXT,
+  status TEXT DEFAULT 'new',
+  notes TEXT,
+  created_at INTEGER NOT NULL,
+  resolved_at INTEGER,
+  resolved_by TEXT,
+  FOREIGN KEY (client_id) REFERENCES clients(id),
+  FOREIGN KEY (call_log_id) REFERENCES call_logs(id)
+);
+CREATE INDEX IF NOT EXISTS idx_callbacks_client ON callbacks(client_id);
+CREATE INDEX IF NOT EXISTS idx_callbacks_status ON callbacks(status);
+CREATE INDEX IF NOT EXISTS idx_callbacks_created ON callbacks(created_at DESC);
+
 -- Support tickets (clients submit, Albert/team responds)
 CREATE TABLE IF NOT EXISTS support_tickets (
   id TEXT PRIMARY KEY,
