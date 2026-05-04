@@ -128,3 +128,4 @@ Copy any existing `<section>` block as a template. Sections use Tailwind utility
 ## License
 
 Proprietary. © 2026 Apex Tools AI. All rights reserved.
+<!-- deploy-trigger: 1777933610 -->
