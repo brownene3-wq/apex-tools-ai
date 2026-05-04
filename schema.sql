@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   call_log_id TEXT,
   patient_name TEXT NOT NULL,
   patient_phone TEXT,
+  caller_number_origin TEXT, -- caller's actual incoming phone (from caller-ID); fallback if patient_phone is wrong/typo'd
   patient_email TEXT,
   service TEXT,
   appointment_at INTEGER NOT NULL,
@@ -120,6 +121,7 @@ CREATE TABLE IF NOT EXISTS callbacks (
   reason TEXT,
   language TEXT DEFAULT 'en',
   preferred_time TEXT,
+  caller_number_origin TEXT, -- caller's actual incoming phone; fallback if caller_phone given is wrong/typo'd
   status TEXT DEFAULT 'new',
   notes TEXT,
   created_at INTEGER NOT NULL,

@@ -17,6 +17,18 @@ async function ensureCallbacksTable(env) {
       env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_callbacks_status ON callbacks(status)`),
       env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_callbacks_created ON callbacks(created_at DESC)`),
     ]);
+    // Add caller_number_origin column to appointments + callbacks (idempotent — ignores
+    // "duplicate column" errors so existing deployments only add it once)
+    for (const stmt of [
+      `ALTER TABLE appointments ADD COLUMN caller_number_origin TEXT`,
+      `ALTER TABLE callbacks ADD COLUMN caller_number_origin TEXT`,
+    ]) {
+      try { await env.DB.prepare(stmt).run(); } catch (e) {
+        if (!/duplicate column/i.test(e?.message || '')) {
+          console.error('callbacks migration ALTER:', e?.message);
+        }
+      }
+    }
     _callbacksMigrated = true;
   } catch (e) { console.error('callbacks migration:', e?.message || e); }
 }

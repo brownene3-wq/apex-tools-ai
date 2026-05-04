@@ -650,6 +650,7 @@ async function loadCalendar() {
       <div class="px-6 py-4 flex items-center justify-between">
         <div>
           <div class="font-semibold text-navy-900">${escapeHtml(r.patient_name)} <span class="text-navy-400 text-xs ml-2">${escapeHtml(r.patient_phone || '')}</span></div>
+          ${r.caller_number_origin && r.caller_number_origin !== r.patient_phone ? `<div class="text-xs text-navy-400 mt-0.5">Called from: <a href="tel:${escapeHtml(r.caller_number_origin.replace(/[^+\d]/g,''))}" class="text-accent-600 hover:text-accent-700 font-mono">${escapeHtml(r.caller_number_origin)}</a> <span class="text-navy-400" title="Fallback if the number above doesn't work">(fallback)</span></div>` : ''}
           <div class="text-sm text-navy-500">${escapeHtml(r.service || 'Appointment')} · ${fmtDate(r.appointment_at)}</div>
         </div>
         <span class="bg-accent-100 text-accent-700 text-xs font-semibold px-2 py-1 rounded-full">${escapeHtml(r.status)}</span>
@@ -832,6 +833,7 @@ async function loadCallbacks() {
             <i data-lucide="phone" class="w-3.5 h-3.5"></i> ${escapeHtml(cb.caller_phone)}
           </a>
           <span class="text-xs text-navy-500 ml-3">${langFlag}</span>
+          ${cb.caller_number_origin && cb.caller_number_origin !== cb.caller_phone ? `<div class="text-xs text-navy-500 mt-1">Called from: <a href="tel:${escapeHtml(cb.caller_number_origin.replace(/[^+\d]/g,''))}" class="text-accent-600 hover:text-accent-700 font-mono">${escapeHtml(cb.caller_number_origin)}</a> <span class="text-navy-400" title="Fallback if number above doesn't work">(fallback)</span></div>` : ''}
         </div>
         <div class="text-right text-xs text-navy-500 whitespace-nowrap">${fmtDate(cb.created_at)}</div>
       </div>

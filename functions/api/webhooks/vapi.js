@@ -294,9 +294,9 @@ export async function onRequestPost(context) {
       const apptId = newId('appt');
       const apptAt = structured.appointmentDate ? new Date(structured.appointmentDate).getTime() : (Date.now() + 86400000);
       await env.DB.prepare(
-        `INSERT INTO appointments (id, client_id, call_log_id, patient_name, patient_phone, service, appointment_at, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(apptId, client.id, id, structured.patient_name || 'Unknown', structured.patient_phone || callerNumber, structured.service || '', apptAt, 'booked', Date.now()).run();
+        `INSERT INTO appointments (id, client_id, call_log_id, patient_name, patient_phone, caller_number_origin, service, appointment_at, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(apptId, client.id, id, structured.patient_name || 'Unknown', structured.patient_phone || callerNumber, callerNumber || null, structured.service || '', apptAt, 'booked', Date.now()).run();
       await logUsage(env, client.id, 'appointment_booked');
 
       // Send appointment SMS to practice (respects notify_appointment toggle)
@@ -438,10 +438,11 @@ export async function onRequestPost(context) {
         }
         const apptId = newId('appt');
         const apptAt = args.requestedDateTime ? new Date(args.requestedDateTime).getTime() : (Date.now() + 86400000);
+        const originNumber = msg.call?.customer?.number || msg.customer?.number || null;
         await env.DB.prepare(
-          `INSERT INTO appointments (id, client_id, patient_name, patient_phone, service, appointment_at, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(apptId, client.id, args.patientName.trim(), '+1' + digits.slice(-10), args.appointmentType || '', apptAt, 'booked', Date.now()).run();
+          `INSERT INTO appointments (id, client_id, patient_name, patient_phone, caller_number_origin, service, appointment_at, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(apptId, client.id, args.patientName.trim(), '+1' + digits.slice(-10), originNumber, args.appointmentType || '', apptAt, 'booked', Date.now()).run();
         await logUsage(env, client.id, 'appointment_booked', { name: args.patientName });
 
         if (client.notify_appointment === 1 || client.notify_appointment === null) {
@@ -535,14 +536,15 @@ export async function onRequestPost(context) {
             callbackId = 'cb_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
             // Detect language from transcript hints
             const cbLang = /\b(hola|gracias|cita|llamar|por favor|gerente|dentista)\b/i.test(reason + ' ' + (args.appointmentType || '')) ? 'es' : 'en';
+            const cbOriginNum = msg.call?.customer?.number || msg.customer?.number || null;
             await env.DB.prepare(
               `INSERT INTO callbacks (id, client_id, call_log_id, caller_name, caller_phone,
-                 reason, language, preferred_time, status, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+                 reason, language, preferred_time, caller_number_origin, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
             ).bind(
               callbackId, client.id, msg.call?.id || null,
               (callerName || '').trim() || null, '+1' + digits,
-              reason, cbLang, args.preferredTime || null, Date.now()
+              reason, cbLang, args.preferredTime || null, cbOriginNum, Date.now()
             ).run();
             await logUsage(env, client.id, 'callback_logged', { name: callerName, reason });
           } catch (e) {
@@ -557,10 +559,11 @@ export async function onRequestPost(context) {
           // Default: ASAP (now). If AI passed a requestedDateTime, use that.
           const apptAt = args.requestedDateTime ? new Date(args.requestedDateTime).getTime() : Date.now();
           try {
+            const originNum = msg.call?.customer?.number || msg.customer?.number || null;
             await env.DB.prepare(
-              `INSERT INTO appointments (id, client_id, patient_name, patient_phone, service, appointment_at, status, notes, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-            ).bind(apptId, client.id, callerName.trim(), '+1' + digits, args.appointmentType || 'URGENT — ' + reason, apptAt, 'urgent', reason, Date.now()).run();
+              `INSERT INTO appointments (id, client_id, patient_name, patient_phone, caller_number_origin, service, appointment_at, status, notes, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(apptId, client.id, callerName.trim(), '+1' + digits, originNum, args.appointmentType || 'URGENT — ' + reason, apptAt, 'urgent', reason, Date.now()).run();
             await logUsage(env, client.id, 'appointment_booked', { name: callerName, urgent: true });
             apptCreated = true;
 
