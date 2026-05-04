@@ -836,7 +836,7 @@ closing line and endCall call together = ONE response from you. After that
 response, you stop. The system handles the actual hang-up.
 
 NEVER say both languages back to back. Pick the right one for the call language
-based on the language LOCKED at the start of the call. Stay in that language.\`;
+based on the language LOCKED at the start of the call. Stay in that language.`;
 };
 
 export const buildFirstMessage = (client) => {
