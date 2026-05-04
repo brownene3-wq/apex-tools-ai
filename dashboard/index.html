@@ -512,13 +512,21 @@ async function loadOverview() {
 
 // ---- CALLS ----
 async function loadCalls() {
-  // Chrome often autofills the search input with a remembered email on first
-  // section render. If the value was set by autofill (not user typing), clear
-  // it so the call list doesn't filter to zero. We track whether the user has
-  // actually focused/typed in the field via window._callQTouched.
+  // Chrome autofills the search field with the user's email even though we set
+  // autocomplete=off and a non-standard `name`. The autofill ALSO fires a
+  // synthetic focus event — which is why our previous focus-based touched
+  // detection was failing. Two layers of defense:
+  //   1. Only real `input` events mark the field as user-touched (set in the
+  //      input handler below — focus alone does NOT count).
+  //   2. Even if the field somehow has a value the user didn't type, scrub
+  //      anything that contains characters not legal in a phone-search
+  //      (@, /, \\, comma, semicolon) — those are autofill telltales.
   const callQEl = document.getElementById('callQ');
-  if (callQEl && !window._callQTouched) callQEl.value = '';
-  const q = callQEl.value;
+  if (callQEl) {
+    if (!window._callQTouched) callQEl.value = '';
+    if (callQEl.value && /[@\\\/,;]/.test(callQEl.value)) callQEl.value = '';
+  }
+  const q = callQEl?.value || '';
   const lang = document.getElementById('callLang').value;
   const urgent = document.getElementById('callUrgent').value;
   const params = new URLSearchParams({ limit: '100', q, lang, urgent });
@@ -544,7 +552,6 @@ async function loadCalls() {
   else el?.addEventListener('change', loadCalls);
 });
 document.getElementById('callQ')?.addEventListener('input', () => { window._callQTouched = true; clearTimeout(window._cq); window._cq = setTimeout(loadCalls, 400); });
-document.getElementById('callQ')?.addEventListener('focus', () => { window._callQTouched = true; });
 
 // ---- CONFIGURE ----
 async function loadConfigure() {
