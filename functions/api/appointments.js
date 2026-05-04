@@ -11,8 +11,11 @@ export async function onRequestGet(context) {
   const where = upcoming ? 'client_id = ? AND appointment_at >= ?' : 'client_id = ?';
   const params = upcoming ? [clientId, Date.now()] : [clientId];
 
+  // Sort by created_at DESC — most recently BOOKED appointment first. Matches
+  // the user mental model of "what did the AI just book?" The UI separately
+  // shows the scheduled appointment_at so calendar context is preserved.
   const rows = await env.DB.prepare(
-    `SELECT * FROM appointments WHERE ${where} ORDER BY appointment_at ASC LIMIT 200`
+    `SELECT * FROM appointments WHERE ${where} ORDER BY created_at DESC LIMIT 200`
   ).bind(...params).all();
 
   return json({ appointments: rows.results || [] });

@@ -151,7 +151,7 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
 
       <section id="section-calendar" class="section hidden">
         <h1 class="font-display text-3xl font-extrabold text-navy-900 mb-1">Appointments</h1>
-        <p class="text-navy-600 text-sm mb-6">Every appointment your AI booked.</p>
+        <p class="text-navy-600 text-sm mb-6">Every appointment your AI booked — most recent at the top.</p>
         <div id="apptList" class="bg-white rounded-2xl border border-navy-100"></div>
       </section>
 
@@ -360,6 +360,15 @@ body{font-family:Inter,sans-serif;background:#f8fafc}
 const escapeHtml = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 const fmtDate = ts => new Date(Number(ts)).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
 const fmtDuration = s => { if (!s) return '–'; const m = Math.floor(s/60); const sec = s%60; return m ? `${m}m ${sec}s` : `${sec}s`; };
+const fmtRelative = ts => {
+  const t = Number(ts); if (!t) return '';
+  const diff = Date.now() - t;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return Math.floor(diff/60000) + ' min ago';
+  if (diff < 86400000) return Math.floor(diff/3600000) + ' hr ago';
+  if (diff < 604800000) return Math.floor(diff/86400000) + ' day' + (Math.floor(diff/86400000)===1?'':'s') + ' ago';
+  return new Date(t).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+};
 const toast = (msg, type='success') => {
   const colors = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-navy-900' };
   const el = document.createElement('div');
@@ -659,6 +668,7 @@ async function loadCalendar() {
           <div class="font-semibold text-navy-900">${escapeHtml(r.patient_name)} <span class="text-navy-400 text-xs ml-2">${escapeHtml(r.patient_phone || '')}</span></div>
           ${r.caller_number_origin && r.caller_number_origin !== r.patient_phone ? `<div class="text-xs text-navy-400 mt-0.5">Called from: <a href="tel:${escapeHtml(r.caller_number_origin.replace(/[^+\d]/g,''))}" class="text-accent-600 hover:text-accent-700 font-mono">${escapeHtml(r.caller_number_origin)}</a> <span class="text-navy-400" title="Fallback if the number above doesn't work">(fallback)</span></div>` : ''}
           <div class="text-sm text-navy-500">${escapeHtml(r.service || 'Appointment')} · ${fmtDate(r.appointment_at)}</div>
+          ${r.created_at ? `<div class="text-xs text-navy-400 mt-0.5">Booked ${fmtRelative(r.created_at)} · ${fmtDate(r.created_at)}</div>` : ''}
         </div>
         <span class="bg-accent-100 text-accent-700 text-xs font-semibold px-2 py-1 rounded-full">${escapeHtml(r.status)}</span>
       </div>`).join('')}</div>`;
