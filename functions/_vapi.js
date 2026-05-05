@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 73;
+export const PROMPT_VERSION = 74;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -973,12 +973,26 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // Original ElevenLabs setup — Jessica voice on eleven_multilingual_v2.
+      // 2026-05-05 (round 3): switched eleven_multilingual_v2 -> eleven_flash_v2_5
+      // because of a streaming pipeline race: short LLM responses (~6 words,
+      // 260ms) caused Vapi to clear the LLM stream before the multilingual_v2
+      // WebSocket buffered any text. Result: ElevenLabs WS opened, LLM
+      // completed with valid Spanish text, then "stream clearing" fired and
+      // the WS never produced audio — 12s of dead silence then call ended.
+      // flash_v2_5 supports Spanish + has lower-latency streaming. The
+      // chunkPlan adds a minimum-chunk threshold so Vapi waits to send TTS
+      // until at least 30 chars are buffered, avoiding the race where the LLM
+      // finishes before TTS is connected.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
-      model: 'eleven_multilingual_v2',
+      model: 'eleven_flash_v2_5',
       stability: 0.65,
       similarityBoost: 0.85,
+      chunkPlan: {
+        enabled: true,
+        minCharacters: 30,
+        punctuationBoundaries: ['.', '!', '?', ',', ';', ':'],
+      },
     },
     server: {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
