@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 75;
+export const PROMPT_VERSION = 76;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -964,7 +964,7 @@ export const syncAssistant = async (env, client) => {
       model: 'nova-3',
       language: 'multi',
       numerals: true,
-      endpointing: 500,
+      endpointing: 300,  // tightened from 500 for faster response (was adding ~200ms latency)
       smartFormat: false,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
     },
@@ -1007,8 +1007,14 @@ export const syncAssistant = async (env, client) => {
       // the AI feels slow. With the partial-digit "..." rule removed, we don't
       // need extreme patience — Vapi already buffers user speech with the
       // endpointing setting in the transcriber.
-      waitSeconds: 1.5,
-      smartEndpointingPlan: { provider: 'livekit', waitFunction: '100 + 5000 * x' },
+      // 2026-05-05: tuned for faster response (~0.8-1.2s instead of 2.5s).
+      // waitSeconds: 1.5 -> 0.4 (smartEndpoint already adds buffer when uncertain)
+      // smartEndpointing formula: '100 + 5000 * x' -> '50 + 2000 * x' (less
+      // penalty for uncertainty — still safe because stopSpeakingPlan numWords:5
+      // prevents AI from getting cut off mid-response and the digit-readback
+      // flow handles phone numbers via prompt structure, not raw timing).
+      waitSeconds: 0.4,
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '50 + 2000 * x' },
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
