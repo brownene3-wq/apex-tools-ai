@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 74;
+export const PROMPT_VERSION = 75;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -964,7 +964,7 @@ export const syncAssistant = async (env, client) => {
       model: 'nova-3',
       language: 'multi',
       numerals: true,
-      endpointing: 500,  // Vapi API caps at 500ms — values >500 are rejected. waitSeconds:1.2 in startSpeakingPlan provides extra buffer.
+      endpointing: 500,
       smartFormat: false,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
     },
@@ -973,26 +973,12 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // 2026-05-05 (round 3): switched eleven_multilingual_v2 -> eleven_flash_v2_5
-      // because of a streaming pipeline race: short LLM responses (~6 words,
-      // 260ms) caused Vapi to clear the LLM stream before the multilingual_v2
-      // WebSocket buffered any text. Result: ElevenLabs WS opened, LLM
-      // completed with valid Spanish text, then "stream clearing" fired and
-      // the WS never produced audio — 12s of dead silence then call ended.
-      // flash_v2_5 supports Spanish + has lower-latency streaming. The
-      // chunkPlan adds a minimum-chunk threshold so Vapi waits to send TTS
-      // until at least 30 chars are buffered, avoiding the race where the LLM
-      // finishes before TTS is connected.
+      // Original ElevenLabs setup — Jessica voice on eleven_multilingual_v2.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
-      model: 'eleven_flash_v2_5',
+      model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
-      chunkPlan: {
-        enabled: true,
-        minCharacters: 30,
-        punctuationBoundaries: ['.', '!', '?', ',', ';', ':'],
-      },
     },
     server: {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
@@ -1017,31 +1003,21 @@ export const syncAssistant = async (env, client) => {
     ],
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
-      // FIXED 2026-05-05 (round 2): The real bug was NOT smartEndpointingPlan.
-      // It was transcriptionEndpointingPlan defaults treating every comma /
-      // question mark as end-of-turn. Caller saying "Hi. Tu me aca un
-      // appointment? Y esto?" caused 4+ rapid LLM starts, each aborted in
-      // <600ms because a new is_final transcript came in. The LLM produced
-      // valid Spanish but every response was canceled before TTS could speak
-      // it. Fix: raise onPunctuationSeconds and onNoPunctuationSeconds so Vapi
-      // waits for the caller to ACTUALLY stop, not just pause briefly between
-      // sentences.
+      // Wait long enough for natural intra-number pauses but not so long that
+      // the AI feels slow. With the partial-digit "..." rule removed, we don't
+      // need extreme patience — Vapi already buffers user speech with the
+      // endpointing setting in the transcriber.
       waitSeconds: 1.5,
-      transcriptionEndpointingPlan: {
-        onPunctuationSeconds: 0.8,    // default 0.1 was way too aggressive
-        onNoPunctuationSeconds: 2.0,  // default 1.5
-        onNumberSeconds: 1.5,         // default 0.5 — phone numbers need patience
-      },
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '100 + 5000 * x' },
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
     // noise or echo bleed was tripping it and chopping the AI's TTS.
     stopSpeakingPlan: {
-      // Require 8 confirmed user words before stopping AI mid-response. Combined
-      // with the removed smartEndpointing above, this prevents the AI from being
-      // cut off by phone-line static, echo bleed, or single-word filler from
-      // the caller ("uh-huh", "sí").
-      numWords: 8,
+      // Vapi caps voiceSeconds at 0.5. To still reduce choppiness, we lean on
+      // numWords (require 5 confirmed user words before stopping AI) and shorter
+      // backoff so resumes sound continuous rather than pausing.
+      numWords: 5,
       voiceSeconds: 0.5,
       backoffSeconds: 0.4,
     },
