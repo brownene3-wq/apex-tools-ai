@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 76;
+export const PROMPT_VERSION = 77;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -1007,14 +1007,19 @@ export const syncAssistant = async (env, client) => {
       // the AI feels slow. With the partial-digit "..." rule removed, we don't
       // need extreme patience — Vapi already buffers user speech with the
       // endpointing setting in the transcriber.
-      // 2026-05-05: tuned for faster response (~0.8-1.2s instead of 2.5s).
-      // waitSeconds: 1.5 -> 0.4 (smartEndpoint already adds buffer when uncertain)
-      // smartEndpointing formula: '100 + 5000 * x' -> '50 + 2000 * x' (less
-      // penalty for uncertainty — still safe because stopSpeakingPlan numWords:5
-      // prevents AI from getting cut off mid-response and the digit-readback
-      // flow handles phone numbers via prompt structure, not raw timing).
-      waitSeconds: 0.4,
+      // 2026-05-05 (round 2): waitSeconds 0.4 was too aggressive — AI
+      // started interrupting mid-phone-number when caller paused between
+      // digit groups. Bumped 0.4 -> 0.7 and added transcriptionEndpointingPlan
+      // with onNumberSeconds: 2.0 so Vapi waits much longer when it sees
+      // digits in the transcript (caller saying their phone number) but
+      // stays snappy on normal speech.
+      waitSeconds: 0.7,
       smartEndpointingPlan: { provider: 'livekit', waitFunction: '50 + 2000 * x' },
+      transcriptionEndpointingPlan: {
+        onPunctuationSeconds: 0.2,
+        onNoPunctuationSeconds: 1.0,
+        onNumberSeconds: 2.0,  // digit entry gets extra patience
+      },
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
