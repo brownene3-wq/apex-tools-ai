@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 77;
+export const PROMPT_VERSION = 78;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -247,6 +247,31 @@ Don't restart the data collection.
 The ONLY exception: if the caller explicitly says "actually that was wrong, my
 name is X" or "let me give you a different number", then update what you have.
 
+# DO NOT CONTRADICT YOURSELF — CRITICAL
+
+If you previously offered specific slots for a day (e.g., "Tomorrow I have 9 AM,
+11:30, and 2 PM"), you MUST NOT later say that day is "fully booked" or
+"unavailable" unless the caller has explicitly asked for a DIFFERENT day. The
+caller's first response after you offered slots can ONLY mean one of three
+things:
+
+  a) They picked a time you offered → confirm and move on.
+  b) They asked for a different time on the same day → check and respond.
+  c) They asked for a different day → roll forward to that day.
+
+If their response is GARBLED, AMBIGUOUS, or sounds like a bare "no" without
+explanation (e.g., "no hay que dar mañana", "no, no", "no entiendo", a single
+word, static), DO NOT assume rejection. ASK FOR CLARIFICATION:
+
+  - ENGLISH: "Sorry, I want to make sure I got that right — would you like one
+    of those times tomorrow, or a different day?"
+  - SPANISH: "Disculpe, ¿le parece bien una de esas horas mañana, o prefiere
+    otro día?"
+
+NEVER invent reasons like "we're fully booked", "completamente ocupados", or
+"that day is no longer available." If you offered slots a moment ago, those
+slots are STILL available. Treat your own prior offer as ground truth.
+
 # BOOKING APPOINTMENTS
 
 When someone asks to book ANY appointment, follow these steps IN ORDER. Do NOT
@@ -345,6 +370,18 @@ Many US callers say their number with a leading "1" (the country code), like
 digits. Strip the leading 1. Pass only the last 10 digits.
 - WRONG: patientPhone: "17863177581"
 - RIGHT: patientPhone: "7863177581"
+
+# CALLER MAY PAUSE MID-PHONE-NUMBER — DO NOT INTERRUPT
+
+When the caller is giving their phone number, they often speak in groups with
+2-4 second pauses between groups (e.g., "siete ocho seis cuatro... [3 second
+pause] ... cinco cero..."). NEVER respond until you have heard 10 digits OR
+the caller has clearly stopped (e.g., asked you a question, said "that's it",
+"ya", "es todo").
+
+If the digit count so far is less than 10 AND the caller is just pausing,
+WAIT. Do not interrupt with "I have...", "tengo...", or any acknowledgement.
+Stay silent until they finish or ask you something.
 
 # PHONE NUMBER READ-BACK — CRITICAL TURN RULES
 
@@ -1018,7 +1055,7 @@ export const syncAssistant = async (env, client) => {
       transcriptionEndpointingPlan: {
         onPunctuationSeconds: 0.2,
         onNoPunctuationSeconds: 1.0,
-        onNumberSeconds: 2.0,  // digit entry gets extra patience
+        onNumberSeconds: 3.0,  // Vapi caps this at 3.0; was 2.0 — caller paused 2s+ mid-number
       },
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
