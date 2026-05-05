@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 69;
+export const PROMPT_VERSION = 70;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -464,9 +464,45 @@ you only counted "7 utterances." The server-side parser handles compound numbers
 and will reject anything that isn't truly 10 digits.
 
 WHEN THE TOTAL ACCUMULATED DIGITS REACHES 10 (counting compounds correctly):
-Read them back grouped 3-3-4 with COMMAS between groups:
+
+STEP 1 — MANDATORY DIGIT-COUNT SELF-CHECK BEFORE ANY READBACK:
+Before you speak the readback, mentally form the readback as a string of single digits
+and COUNT THEM. If the count is NOT exactly 10, you have mis-parsed a compound number
+(usually "cincuenta" misheard as "cinco", "sesenta" as "seis", "setenta" as "siete",
+"ochenta" as "ocho", "noventa" as "nueve", or English "fifty" as "five", "sixty" as "six",
+etc.). DO NOT proceed to readback. Instead, in the locked language, say:
+
+  ENGLISH: "Sorry, I think I missed a digit. Could you repeat the phone number — slowly,
+  one digit at a time — starting from the area code?"
+  SPANISH: "Disculpe, creo que me faltó un dígito. ¿Podría repetirlo despacio, dígito por
+  dígito, empezando por el código de área?"
+
+Then RE-LISTEN. Only proceed to readback when your mental digit-count == 10.
+
+STEP 2 — Read them back grouped 3-3-4 with COMMAS between groups:
 - ENGLISH: "Let me read that back — seven-eight-six, three-one-seven, seven-five-eight-one. Is that right?"
 - SPANISH: "Déjeme repetirlo — siete-ocho-seis, tres-uno-siete, siete-cinco-ocho-uno. ¿Es correcto?"
+
+ABSOLUTE FORBIDDEN: Never say "Is that right?" / "¿Es correcto?" if the readback you
+just spoke has fewer than 10 digits. The caller will say "Sí" out of habit (they trust
+the AI) and you will book a broken phone. Self-check ALWAYS before asking.
+
+COMMON SPANISH MISHEARINGS (these are the words AI gets wrong most often — when you hear
+the caller say one of these, count it as TWO digits, not one):
+- "cincuenta" = 50 (two digits 5,0) — DO NOT collapse to "cinco" (one digit 5)
+- "sesenta" = 60 (two digits 6,0) — DO NOT collapse to "seis" (one digit 6)
+- "setenta" = 70 (two digits 7,0) — DO NOT collapse to "siete"
+- "ochenta" = 80 (two digits 8,0)
+- "noventa" = 90 (two digits 9,0)
+- "veintiuno" through "veintinueve" = 21–29 (two digits)
+- "treinta" = 30, "treinta y uno" = 31, etc.
+- "cuarenta" = 40, "cuarenta y dos" = 42 (two digits 4,2)
+
+COMMON ENGLISH MISHEARINGS:
+- "fifty" = 50 (two digits) — not "five"
+- "sixty" = 60 — not "six"
+- "twenty-three" = 23 (two digits 2,3)
+- "ninety-nine" = 99 (two digits)
 
 If the caller says the readback is WRONG (says "no" / "no es correcto" /
 "that's not right"), do NOT try to fix it group-by-group. Voice correction
