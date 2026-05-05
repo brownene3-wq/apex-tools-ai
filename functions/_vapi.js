@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 70;
+export const PROMPT_VERSION = 71;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -964,7 +964,7 @@ export const syncAssistant = async (env, client) => {
       model: 'nova-3',
       language: 'multi',
       numerals: true,
-      endpointing: 500,
+      endpointing: 800,  // bumped 500->800 to reduce false 'user stopped speaking' triggers
       smartFormat: false,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
     },
@@ -1003,21 +1003,25 @@ export const syncAssistant = async (env, client) => {
     ],
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
-      // Wait long enough for natural intra-number pauses but not so long that
-      // the AI feels slow. With the partial-digit "..." rule removed, we don't
-      // need extreme patience — Vapi already buffers user speech with the
-      // endpointing setting in the transcriber.
-      waitSeconds: 1.5,
-      smartEndpointingPlan: { provider: 'livekit', waitFunction: '100 + 5000 * x' },
+      // FIXED 2026-05-05: smartEndpointingPlan with livekit's "100 + 5000 * x"
+      // function was repeatedly aborting the AI's LLM requests on Spanish calls
+      // ("LLM request aborted before completion" appeared 3x in 30s on a single
+      // call where the AI never produced a single response). The endpointing
+      // model treated breath, line noise, and consonant breaks as "user still
+      // speaking" and canceled in-flight LLM requests. Removed smartEndpointing
+      // and reverted to plain waitSeconds. The transcriber's endpointing:800
+      // already gives Deepgram enough time to confirm end-of-utterance.
+      waitSeconds: 1.2,
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
     // noise or echo bleed was tripping it and chopping the AI's TTS.
     stopSpeakingPlan: {
-      // Vapi caps voiceSeconds at 0.5. To still reduce choppiness, we lean on
-      // numWords (require 5 confirmed user words before stopping AI) and shorter
-      // backoff so resumes sound continuous rather than pausing.
-      numWords: 5,
+      // Require 8 confirmed user words before stopping AI mid-response. Combined
+      // with the removed smartEndpointing above, this prevents the AI from being
+      // cut off by phone-line static, echo bleed, or single-word filler from
+      // the caller ("uh-huh", "sí").
+      numWords: 8,
       voiceSeconds: 0.5,
       backoffSeconds: 0.4,
     },
