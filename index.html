@@ -457,17 +457,21 @@
       <p class="mt-4 text-sm text-navy-100/60">Demo line — no charge, no signup, just call</p>
     </div>
 
-    <!-- Loom video placeholder -->
+    <!-- 90-second product demo (currently hosted on Dropbox; should migrate to
+         Cloudflare R2 / self-hosted asset before traffic ramps to avoid the
+         Dropbox public-link bandwidth cap which can throttle hot links) -->
     <div class="reveal max-w-3xl mx-auto">
-      <div class="aspect-video bg-navy-800/50 rounded-2xl border border-white/10 flex items-center justify-center hover:border-accent-500/50 transition-colors group cursor-pointer">
-        <div class="text-center">
-          <div class="w-20 h-20 mx-auto bg-accent-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <i data-lucide="play" class="w-9 h-9 text-white ml-1"></i>
-          </div>
-          <p class="font-semibold text-lg">Watch 90-second demo video</p>
-          <p class="text-sm text-navy-100/60 mt-1">English & Spanish call walkthroughs</p>
-        </div>
+      <div class="aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-accent-500/10 bg-black">
+        <video
+          controls
+          playsinline
+          preload="metadata"
+          class="w-full h-full"
+          src="https://www.dropbox.com/scl/fi/tz1osvm50syh4o7w4uidw/Demo-Video-ApexTools-AI-Final.mp4?rlkey=i2yt1m58oudicq2qptd96oh0z&raw=1">
+          Your browser doesn't support inline video. <a href="https://www.dropbox.com/scl/fi/tz1osvm50syh4o7w4uidw/Demo-Video-ApexTools-AI-Final.mp4?rlkey=i2yt1m58oudicq2qptd96oh0z&dl=1" class="text-accent-400 underline">Download the demo video</a>.
+        </video>
       </div>
+      <p class="text-sm text-navy-100/60 mt-3 text-center">90-second walkthrough — English &amp; Spanish call demos, dashboard tour</p>
     </div>
   </div>
 </section>
