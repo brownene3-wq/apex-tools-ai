@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 72;
+export const PROMPT_VERSION = 73;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -1003,15 +1003,21 @@ export const syncAssistant = async (env, client) => {
     ],
     // Wait longer before AI grabs the turn — important for phone numbers and names.
     startSpeakingPlan: {
-      // FIXED 2026-05-05: smartEndpointingPlan with livekit's "100 + 5000 * x"
-      // function was repeatedly aborting the AI's LLM requests on Spanish calls
-      // ("LLM request aborted before completion" appeared 3x in 30s on a single
-      // call where the AI never produced a single response). The endpointing
-      // model treated breath, line noise, and consonant breaks as "user still
-      // speaking" and canceled in-flight LLM requests. Removed smartEndpointing
-      // and reverted to plain waitSeconds. The transcriber's endpointing:800
-      // already gives Deepgram enough time to confirm end-of-utterance.
-      waitSeconds: 1.2,
+      // FIXED 2026-05-05 (round 2): The real bug was NOT smartEndpointingPlan.
+      // It was transcriptionEndpointingPlan defaults treating every comma /
+      // question mark as end-of-turn. Caller saying "Hi. Tu me aca un
+      // appointment? Y esto?" caused 4+ rapid LLM starts, each aborted in
+      // <600ms because a new is_final transcript came in. The LLM produced
+      // valid Spanish but every response was canceled before TTS could speak
+      // it. Fix: raise onPunctuationSeconds and onNoPunctuationSeconds so Vapi
+      // waits for the caller to ACTUALLY stop, not just pause briefly between
+      // sentences.
+      waitSeconds: 1.5,
+      transcriptionEndpointingPlan: {
+        onPunctuationSeconds: 0.8,    // default 0.1 was way too aggressive
+        onNoPunctuationSeconds: 2.0,  // default 1.5
+        onNumberSeconds: 1.5,         // default 0.5 — phone numbers need patience
+      },
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
