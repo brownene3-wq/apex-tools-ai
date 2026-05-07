@@ -37,7 +37,7 @@ tailwind.config = { theme: { extend: { colors: {
 
 <main class="max-w-3xl mx-auto px-4 lg:px-8 py-12 lg:py-16">
   <h1 class="font-display text-4xl lg:text-5xl font-extrabold text-navy-900 mb-3">Privacy Policy</h1>
-  <p class="text-navy-500 text-sm mb-10">Last updated: April 29, 2026 · Effective immediately</p>
+  <p class="text-navy-500 text-sm mb-10">Last updated: May 6, 2026 · Effective immediately</p>
 
   <div class="prose">
     <p>Apex Tools AI (&ldquo;we,&rdquo; &ldquo;us,&rdquo; &ldquo;our&rdquo;) operates the website apextoolsai.com and provides bilingual AI phone receptionist services to dental practices, medical spas, and other small businesses (&ldquo;Practice,&rdquo; &ldquo;Customer&rdquo;). This Privacy Policy explains what information we collect, why we collect it, how we use it, and your rights over it.</p>
@@ -95,10 +95,98 @@ tailwind.config = { theme: { extend: { colors: {
     </ul>
     <p>We do <strong>not</strong> sell personal information. We do <strong>not</strong> share patient call recordings or transcripts with anyone outside the Practice that subscribed to the service, except as required to provide the service (e.g., voice processing by Vapi, transcription by Deepgram, voice synthesis by ElevenLabs, language model inference by OpenAI).</p>
 
-    <h2>5. Where data is stored</h2>
+    <h2>5. Third-party service providers we share data with</h2>
+    <p>To deliver the AI receptionist service, we share specific subsets of data with the following third-party processors. Each is bound by their own privacy policy and data-processing terms. We do <strong>not</strong> sell, rent, or trade your data to anyone, and we do <strong>not</strong> use Google user data for advertising.</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:1em 0;">
+      <thead>
+        <tr style="background:#f3f4f6;text-align:left;">
+          <th style="padding:8px;border:1px solid #e5e7eb;">Provider</th>
+          <th style="padding:8px;border:1px solid #e5e7eb;">What we share</th>
+          <th style="padding:8px;border:1px solid #e5e7eb;">Why</th>
+          <th style="padding:8px;border:1px solid #e5e7eb;">Privacy policy</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Cloudflare, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">All account data, call logs, transcripts, OAuth tokens (encrypted at rest in Cloudflare D1)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Hosting infrastructure and database</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">cloudflare.com/privacypolicy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Vapi, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Caller phone number, audio stream, conversation transcript</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Voice AI orchestration (real-time call handling)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://vapi.ai/privacy" target="_blank" rel="noopener">vapi.ai/privacy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>OpenAI, L.L.C.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Conversation transcript (text only) for in-call response generation</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Language model inference (powers the AI&rsquo;s conversational responses). OpenAI does not train on this data per their API data-usage policy.</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener">openai.com/policies/privacy-policy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>ElevenLabs, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">AI&rsquo;s outgoing text only (no caller audio or PII)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Text-to-speech voice synthesis</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://elevenlabs.io/privacy" target="_blank" rel="noopener">elevenlabs.io/privacy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Deepgram, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Live caller audio stream (transcribed in real time, not stored by Deepgram)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Speech-to-text transcription (delivered through Vapi)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://deepgram.com/privacy" target="_blank" rel="noopener">deepgram.com/privacy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Twilio, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Caller phone number, call metadata, optional outbound SMS content (urgent alerts)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Telephony — inbound call routing and SMS delivery</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://www.twilio.com/legal/privacy" target="_blank" rel="noopener">twilio.com/legal/privacy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Stripe, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Customer name, email, billing address, payment-card data (handled by Stripe directly &mdash; we never see card numbers)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Subscription billing and payment processing</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://stripe.com/privacy" target="_blank" rel="noopener">stripe.com/privacy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Resend, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Recipient email address and email content (transactional emails only)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Transactional email delivery (login links, receipts, alerts)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://resend.com/legal/privacy-policy" target="_blank" rel="noopener">resend.com/legal/privacy-policy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Google LLC (Calendar API)</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">OAuth access token + appointments we create on the customer&rsquo;s connected Google Calendar</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Push booked appointments into the customer&rsquo;s Google Calendar (only if the customer connects this integration)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>NexHealth, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">API token + appointment + patient name/phone</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Push booked appointments into the customer&rsquo;s practice management system (only if the customer connects this integration)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://www.nexhealth.com/privacy-policy" target="_blank" rel="noopener">nexhealth.com/privacy-policy</a></td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><strong>Cal.com, Inc.</strong></td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">API token + appointment metadata</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;">Push booked appointments into the customer&rsquo;s Cal.com calendar (only if the customer connects this integration)</td>
+          <td style="padding:8px;border:1px solid #e5e7eb;"><a href="https://cal.com/privacy" target="_blank" rel="noopener">cal.com/privacy</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Limited transfer of Google user data</h3>
+    <p>Data obtained through Google APIs (Google Calendar) is used solely to provide and improve the appointment-booking integration the customer explicitly authorized. We do <strong>not</strong> use Google user data to develop, improve, or train generalized AI/ML models, and we do <strong>not</strong> share Google user data with any third party except as strictly necessary to operate the integration (Cloudflare for storage of encrypted OAuth tokens) or as required by law. Google user data is never used for advertising and is never sold.</p>
+
+    <h3>Other transfers</h3>
+    <p>We may also disclose information (1) to comply with a valid legal request (subpoena, court order, lawful government request), (2) to enforce our Terms of Service, (3) to protect the rights, property, or safety of Apex Tools AI, our customers, or the public, or (4) in connection with a merger, acquisition, or sale of assets &mdash; in which case affected users will receive notice and a chance to delete their data before transfer.</p>
+
+    <h2>6. Where data is stored</h2>
     <p>Customer accounts, configuration, call logs, transcripts, and integration credentials live in Cloudflare D1 (a SQLite-backed database) in Cloudflare&rsquo;s North American region. Audio recordings are temporarily held by Vapi for the duration of the call and a short retention window thereafter. Email is sent through Resend.</p>
 
-    <h2>6. How long we keep data</h2>
+    <h2>7. How long we keep data</h2>
     <ul>
       <li>Account data: for the life of your subscription, plus 90 days after cancellation.</li>
       <li>Call transcripts and audio: 90 days by default, shorter on request.</li>
@@ -106,10 +194,10 @@ tailwind.config = { theme: { extend: { colors: {
       <li>OAuth tokens: until you disconnect the integration or close your account.</li>
     </ul>
 
-    <h2>7. Security</h2>
+    <h2>8. Security</h2>
     <p>All traffic to apextoolsai.com runs over HTTPS with HSTS. Passwords are hashed using PBKDF2-SHA256 with 100,000 iterations and a per-user salt. Session cookies are HttpOnly, Secure, and SameSite=Lax. Integration credentials are encrypted at rest. We use Cloudflare&rsquo;s managed infrastructure for DDoS protection, WAF, and edge security.</p>
 
-    <h2>8. Your rights</h2>
+    <h2>9. Your rights</h2>
     <p>You can:</p>
     <ul>
       <li>Request a copy of the data we hold about you.</li>
@@ -119,13 +207,13 @@ tailwind.config = { theme: { extend: { colors: {
     </ul>
     <p>If you are a California resident, you have additional rights under the CCPA (right to know, right to delete, right to opt out of sale &mdash; we don&rsquo;t sell). If you are in the EU/UK, you have rights under the GDPR (access, rectification, erasure, portability, restriction, objection).</p>
 
-    <h2>9. Children</h2>
+    <h2>10. Children</h2>
     <p>Apex Tools AI is not directed to children under 16. We do not knowingly collect data from children. If you believe a child has provided data to us, contact us and we will delete it.</p>
 
-    <h2>10. Changes to this policy</h2>
+    <h2>11. Changes to this policy</h2>
     <p>We may update this policy. Material changes will be announced by email to customers at least 14 days before they take effect. The &ldquo;Last updated&rdquo; date at the top of this page reflects the most recent revision.</p>
 
-    <h2>11. Contact</h2>
+    <h2>12. Contact</h2>
     <p>Questions, requests, or complaints: <a href="mailto:hello@apextoolsai.com">hello@apextoolsai.com</a></p>
   </div>
 </main>
