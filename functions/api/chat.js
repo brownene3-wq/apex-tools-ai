@@ -182,6 +182,76 @@ const checkRate = (ip) => {
 
 const safeStr = (v, max = 500) => (v == null ? null : String(v).slice(0, max));
 
+// ============== FALLBACK MARKER INFERENCE ==============
+// gpt-4o-mini sometimes ignores SUGGEST/CTA instructions. This derives them
+// from the reply text using simple heuristics so visitors always get
+// follow-up chips and a contextual CTA button.
+const inferMarkers = (reply, userMessage, lang) => {
+  const lower = (reply || '').toLowerCase();
+  const userLower = (userMessage || '').toLowerCase();
+  const T = lang === 'es' ? {
+    pricing: ['Ver precios completos', 'Llamar la demo', 'Agendar llamada de 15 min'],
+    objection: ['Llamar la demo ahora', 'Ver ROI completo', 'Agendar llamada de 15 min'],
+    demo: ['Llamar (954) 475-6922', 'Agendar llamada de 15 min', 'Ver precios'],
+    book: ['Sí, agéndame', 'Llamar la demo primero', 'Mandar email con detalles'],
+    lead: ['Soy dueño/a', 'Soy gerente', 'Estoy investigando'],
+    discovery_size: ['1-3 sillas', '4-8 sillas', '9+ sillas'],
+    discovery_lang: ['Inglés y español', 'Solo inglés', 'Solo español'],
+    integrations: ['Usamos Google Calendar', 'Usamos NexHealth', 'Usamos Open Dental'],
+    generic: ['Ver precios', 'Llamar la demo', 'Agendar llamada de 15 min'],
+  } : {
+    pricing: ['See full pricing', 'Call the demo line', 'Book a 15-min call'],
+    objection: ['Call the demo right now', 'Show me the ROI math', 'Book a 15-min call'],
+    demo: ['Call (954) 475-6922', 'Book a 15-min call', 'See pricing'],
+    book: ['Yes, book me', 'Try the demo first', 'Email me details'],
+    lead: ['I am the owner', 'I am the manager', 'Just exploring'],
+    discovery_size: ['1-3 chairs', '4-8 chairs', '9+ chairs'],
+    discovery_lang: ['English and Spanish', 'English only', 'Spanish only'],
+    integrations: ['We use Google Calendar', 'We use NexHealth', 'We use Open Dental'],
+    generic: ['See pricing', 'Call the demo', 'Book a 15-min call'],
+  };
+  let suggest = null, cta = null;
+
+  // PRICING context
+  if (/\$\d|\$2,500|\$3,000|\$1,000|\$400|\$450|\$100|setup|monthly|price|pricing|cost|tier|bundle|founding/.test(lower)) {
+    suggest = T.pricing;
+    cta = 'pricing';
+  }
+  // OBJECTION context — push ROI / demo
+  if (/expensive|too much|too high|cheaper|150\/month|answering service|150 a month|cost too|recovered revenue|roi|return on/.test(lower + ' ' + userLower)) {
+    suggest = T.objection;
+    cta = 'call_demo';
+  }
+  // DEMO line mention
+  if (/954.*475.*6922|demo line|llamar.*demo|try the demo|live demo/.test(lower)) {
+    suggest = T.demo;
+    cta = 'call_demo';
+  }
+  // BOOK / Cal.com mention
+  if (/15.?min|cal\.com|book a call|schedule a call|discovery call|walkthrough/.test(lower)) {
+    suggest = T.book;
+    cta = 'book';
+  }
+  // Discovery: practice size
+  if (/how many|practice size|chairs|operatories|staff|operatorios|sillas|cuánt/i.test(lower)) {
+    suggest = T.discovery_size;
+  }
+  // Discovery: language mix
+  if (/spanish.speaking|english.speaking|bilingual|language|patient.*speak|hispanohablantes|idioma|patient mix/i.test(lower)) {
+    suggest = T.discovery_lang;
+  }
+  // Discovery: integrations
+  if (/integration|calendar|nexhealth|open dental|dentrix|eaglesoft|google cal|pms|scheduling system/i.test(lower)) {
+    suggest = T.integrations;
+  }
+  // HIPAA — soft CTA to book
+  if (/hipaa|baa|protected health|phi|compliance/i.test(lower + ' ' + userLower)) {
+    suggest = lang === 'es' ? ['Solo necesito agendar', 'Mandar email con detalles', 'Agendar llamada'] : ['I just need scheduling', 'Email me details', 'Book a call'];
+    cta = 'book';
+  }
+  return { suggest: suggest || T.generic, cta };
+};
+
 // ============== MARKER PARSING ==============
 const parseMarkers = (text) => {
   const markers = { lea
