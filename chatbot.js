@@ -298,13 +298,17 @@
   let sending = false;
 
   const linkify = (text) => {
-    const esc = String(text)
+    let esc = String(text)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    return esc
+    // Render markdown bold **text** and italic *text* + links + phones + newlines
+    esc = esc
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(?<![\*\w])\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
       .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
       .replace(/(\b\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b)/g, m => `<a href="tel:${m.replace(/[^0-9]/g,'')}">${m}</a>`)
       .replace(/\n/g, '<br>');
+    return esc;
   };
 
   const renderMessage = (role, text) => {
