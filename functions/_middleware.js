@@ -56,6 +56,41 @@ const ensureSchemaUpToDate = async (env) => {
     )`,
     "ALTER TABLE call_silence_state ADD COLUMN control_url TEXT",
     "ALTER TABLE call_silence_state ADD COLUMN check_in_progress INTEGER DEFAULT 0",
+    `CREATE TABLE IF NOT EXISTS website_chats (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      started_at INTEGER NOT NULL,
+      last_activity_at INTEGER NOT NULL,
+      language TEXT DEFAULT 'en',
+      lead_name TEXT,
+      lead_email TEXT,
+      lead_phone TEXT,
+      lead_practice TEXT,
+      lead_interest TEXT,
+      message_count INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      visitor_ip TEXT,
+      visitor_country TEXT,
+      visitor_user_agent TEXT,
+      referrer TEXT,
+      page_url TEXT,
+      notes TEXT,
+      converted_at INTEGER,
+      closed_at INTEGER
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_website_chats_session ON website_chats(session_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_website_chats_started ON website_chats(started_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_website_chats_status ON website_chats(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_website_chats_lead_email ON website_chats(lead_email)`,
+    `CREATE TABLE IF NOT EXISTS website_chat_messages (
+      id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      tokens INTEGER,
+      created_at INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_chat_messages_chat ON website_chat_messages(chat_id, created_at)`,
   ];
   for (const stmt of safeAdds) {
     try { await env.DB.prepare(stmt).run(); } catch (e) { /* column exists or table missing — ignore */ }
