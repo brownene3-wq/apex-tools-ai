@@ -16,7 +16,7 @@ export async function claudeChat({ env, system, user, maxTokens = 4096, temperat
   if (!env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const model = env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+  const model = env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
   const res = await fetch(API_URL, {
     method: "POST",

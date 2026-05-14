@@ -37,7 +37,7 @@ crons = [
 #
 # Non-secret config (vars):
 [vars]
-ANTHROPIC_MODEL    = "claude-sonnet-4-5-20250929"
+ANTHROPIC_MODEL    = "claude-sonnet-4-6"
 APEX_API_BASE      = "https://apextoolsai.com/api"
 SITE_BASE          = "https://apextoolsai.com"
 RECAP_EMAIL_TO     = "hello@apextoolsai.com"
