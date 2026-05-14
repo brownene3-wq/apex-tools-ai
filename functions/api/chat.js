@@ -29,7 +29,7 @@ AI Website Chatbot only — $1,000 setup + $100/month. Bilingual chat widget for
 Founding Client special: First 50 practices get $1,000 off setup. Lifetime locked monthly rate. Month-to-month, no contract, 30-day money-back guarantee.
 
 # WHY US
-- Bilingual EN/ES auto-detect — 70% of South Florida patients are bilingual or Spanish-only.
+- Bilingual EN/ES auto-detect — 41M+ US adults speak Spanish at home. Most answering services can't handle that.
 - Books in your real calendar (Google Calendar, NexHealth, Calendly).
 - Urgent calls trigger SMS to practice owner in real time.
 - Live in 5 business days.
@@ -44,7 +44,7 @@ Learn: practice type, size, call volume, language mix, role (owner/manager/staff
 
 "Too expensive" / cheaper competitor: "Quick math: one new patient is worth $300-$600 lifetime. Our AI captures 5-10 missed calls a month — that's $1,500-$6,000/month in recovered revenue. The $400 fee is paid back the moment ONE patient books. Most answering services just take a message; ours books the appointment live, in your calendar, while the caller is still on the phone."
 
-"I already have a receptionist": "She's probably amazing. But does she work 24/7? Catch 8pm Friday calls? Handle 3 calls at once? Speak Spanish to your 70% Spanish-speaking patients? Apex is the safety net for everything she can't catch."
+"I already have a receptionist": "She's probably amazing. But does she work 24/7? Catch 8pm Friday calls? Handle 3 calls at once? Speak Spanish to your bilingual patients? Apex is the safety net for everything she can't catch."
 
 "Don't trust AI": "Fair concern. Easiest answer: call (954) 475-6922 right now and talk to it yourself — 60 seconds. If you'd be embarrassed to put it on your line, don't sign up. 30-day money-back guarantee either way."
 
