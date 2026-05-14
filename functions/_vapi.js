@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 92;
+export const PROMPT_VERSION = 93;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -881,11 +881,14 @@ export const buildFirstMessage = (client) => {
   // Lead with a comma — ElevenLabs reads it as a tiny silent pause without
   // the static/breath sound that "..." was producing. This still buffers the
   // Twilio audio-path setup latency without weird artifacts.
-  // Two leading commas — adds ~300-400ms of silent pad to mask PSTN+codec
-  // warmup that was clipping the start of 'Thank you' on cold-start calls.
-  if (langPref === 'es') return `, , Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `, , Thank you for calling ${business}, how can I help you today?`;
-  return `, , Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
+  // Throwaway 'Hello!' prefix — if codec/PSTN warmup clips the very first word,
+  // it eats 'Hello!' instead of 'Thank'. The actual greeting that matters
+  // ('Thank you for calling X...') stays fully intact. ElevenLabs renders
+  // 'Hello!' + punctuation as ~500-700ms of audio that absorbs the cold-start
+  // artifact completely.
+  if (langPref === 'es') return `Hola! Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `Hello! Thank you for calling ${business}, how can I help you today?`;
+  return `Hello! Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
