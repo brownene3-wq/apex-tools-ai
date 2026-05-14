@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 80;
+export const PROMPT_VERSION = 81;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -915,12 +915,16 @@ based on the language LOCKED at the start of the call. Stay in that language.`;
 export const buildFirstMessage = (client) => {
   const business = client.business_name || 'our practice';
   const langPref = client.language_pref || 'both';
-  // Lead with a comma — ElevenLabs reads it as a tiny silent pause without
-  // the static/breath sound that "..." was producing. This still buffers the
-  // Twilio audio-path setup latency without weird artifacts.
-  if (langPref === 'es') return `, Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `, Thank you for calling ${business}, how can I help you today?`;
-  return `, Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
+  // 2026-05 update: cold-start mitigation. The first call after the worker
+  // has been idle has audible warmup on the first 100-300ms (Twilio trunk
+  // setup, ElevenLabs WebSocket handshake, codec spin-up). To mask this,
+  // we lead with ', ,' — two commas which ElevenLabs reads as a longer
+  // silent pause. The first call's cold-start artifacts land in this
+  // silence instead of inside the spoken word. Subsequent calls hit warm
+  // caches and the artifact doesn't occur anyway.
+  if (langPref === 'es') return `, , Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `, , Thank you for calling ${business}, how can I help you today?`;
+  return `, , Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
