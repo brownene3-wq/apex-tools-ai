@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 82;
+export const PROMPT_VERSION = 83;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -922,9 +922,9 @@ export const buildFirstMessage = (client) => {
   // silent pause. The first call's cold-start artifacts land in this
   // silence instead of inside the spoken word. Subsequent calls hit warm
   // caches and the artifact doesn't occur anyway.
-  if (langPref === 'es') return `, , Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `, , Thank you for calling ${business}, how can I help you today?`;
-  return `, , Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
+  if (langPref === 'es') return `, Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `, Thank you for calling ${business}, how can I help you today?`;
+  return `, Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
@@ -1014,24 +1014,15 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // ElevenLabs Jessica on eleven_multilingual_v2.
-      // chunkPlan: requires 80+ chars before splitting AND removes comma from
-      // punctuation boundaries — fixes the audible click between chunks at
-      // each comma in the greeting. Phone lines amplify chunk-splice glitches.
-      //
-      // optimizeStreamingLatency REMOVED — was set to 2 trying to smooth audio,
-      // but caused first-call cold-start breakup. Letting Vapi use its default
-      // which handles cold-start better.
+      // ElevenLabs Jessica on eleven_multilingual_v2 — vanilla Vapi defaults.
+      // Tried optimizeStreamingLatency + chunkPlan tweaks but both made the
+      // first-call audio WORSE. Vapi's defaults handle codec warmup and
+      // chunking correctly for PSTN phone lines.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
       model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
-      chunkPlan: {
-        enabled: true,
-        minCharacters: 80,
-        punctuationBoundaries: ['.', '?', '!', ';', ':'],
-      },
     },
     server: {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
