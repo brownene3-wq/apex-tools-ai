@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 85;
+export const PROMPT_VERSION = 86;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -928,9 +928,14 @@ export const buildFirstMessage = (client) => {
   // analysis of recording — -72 dB drop for 128ms at the chunk splice).
   // Single-sentence English greeting eliminates the chunk boundary. The AI is
   // still bilingual: it switches to Spanish the instant the caller speaks it.
-  if (langPref === 'es') return `, Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `, Thank you for calling ${business}. How can I help you today?`;
-  return `, Thank you for calling ${business}. How can I help you today?`;
+  // Em-dash instead of period — Vapi's chunkPlan doesn't apply to firstMessage,
+  // so we have to avoid the punctuation Vapi splits on (. , ? ! ; :) in the
+  // greeting itself. Em-dash (—) is not in Vapi's default boundary list, so
+  // the entire greeting stays as ONE TTS chunk. Verified via frame-level audio
+  // analysis: period was causing 500ms dropout at the chunk splice.
+  if (langPref === 'es') return `Gracias por llamar a ${business} — ¿cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `Thank you for calling ${business} — how can I help you today?`;
+  return `Thank you for calling ${business} — how can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
