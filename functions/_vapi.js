@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 89;
+export const PROMPT_VERSION = 90;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -915,30 +915,14 @@ based on the language LOCKED at the start of the call. Stay in that language.`;
 export const buildFirstMessage = (client) => {
   const business = client.business_name || 'our practice';
   const langPref = client.language_pref || 'both';
-  // 2026-05 update: cold-start mitigation. The first call after the worker
-  // has been idle has audible warmup on the first 100-300ms (Twilio trunk
-  // setup, ElevenLabs WebSocket handshake, codec spin-up). To mask this,
-  // we lead with ', ,' — two commas which ElevenLabs reads as a longer
-  // silent pause. The first call's cold-start artifacts land in this
-  // silence instead of inside the spoken word. Subsequent calls hit warm
-  // caches and the artifact doesn't occur anyway.
-  // 2026-05-14: removed bilingual greeting for 'both' case. The comma between
-  // English and Spanish halves forced Vapi to split TTS into chunks, producing
-  // an audible audio dropout right after 'Dental' (verified via frame-level
-  // analysis of recording — -72 dB drop for 128ms at the chunk splice).
-  // Single-sentence English greeting eliminates the chunk boundary. The AI is
-  // still bilingual: it switches to Spanish the instant the caller speaks it.
-  // Audio analysis confirmed: chunk splits at periods are audible only when
-  // they fall MID-PHRASE without a natural pause. At natural sentence breaks
-  // (period after a complete thought), ElevenLabs renders a natural pause
-  // anyway and the splice is invisible. Em-dash didn't help because Vapi
-  // still treated it as a boundary.
-  //
-  // Bilingual 'both' greeting now structures the language transition at a
-  // natural sentence boundary so the chunk split is masked by the pause.
-  if (langPref === 'es') return `Hola y gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `Hello and thank you for calling ${business}. How can I help you today?`;
-  return `Hello and thank you for calling ${business}. Gracias por llamar. How can I help you today?`;
+  // Leading comma — ElevenLabs reads it as a tiny silent pause to buffer the
+  // Twilio audio-path setup latency without weird artifacts.
+  // This is the greeting Albert wants — bilingual EN/ES with the practice
+  // name said in both languages. Minor chunk-splice dropout accepted as
+  // tradeoff vs other tradeoffs (voice model change, language drop, etc).
+  if (langPref === 'es') return `, Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `, Thank you for calling ${business}, how can I help you today?`;
+  return `, Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
