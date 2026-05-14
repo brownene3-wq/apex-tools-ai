@@ -1020,7 +1020,7 @@ export const syncAssistant = async (env, client) => {
       // chunkPlan kept for defense-in-depth though flash handles chunks better.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
-      model: 'eleven_flash_v2_5',
+      model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
       chunkPlan: {
