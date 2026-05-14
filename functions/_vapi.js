@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 78;
+export const PROMPT_VERSION = 79;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -1010,12 +1010,17 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // Original ElevenLabs setup — Jessica voice on eleven_multilingual_v2.
+      // ElevenLabs Jessica on eleven_multilingual_v2.
+      // optimizeStreamingLatency dropped from default 3 -> 2: smoother first-
+      // word audio at the cost of ~150ms additional first-byte latency. This
+      // reduces the Opus->μ-law codec warmup clipping callers hear at the
+      // start of every AI utterance on phone calls.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
       model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
+      optimizeStreamingLatency: 2,
     },
     server: {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
