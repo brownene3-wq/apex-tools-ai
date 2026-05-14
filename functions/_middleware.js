@@ -91,6 +91,20 @@ const ensureSchemaUpToDate = async (env) => {
       created_at INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_chat_messages_chat ON website_chat_messages(chat_id, created_at)`,
+    `CREATE TABLE IF NOT EXISTS api_tokens (
+      id TEXT PRIMARY KEY,
+      token_hash TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      scopes TEXT,
+      created_at INTEGER NOT NULL,
+      last_used_at INTEGER,
+      revoked_at INTEGER
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens(token_hash)`,
+    "ALTER TABLE blog_posts ADD COLUMN language TEXT DEFAULT 'en'",
+    "ALTER TABLE blog_posts ADD COLUMN seo_title TEXT",
+    "ALTER TABLE blog_posts ADD COLUMN seo_description TEXT",
+    "ALTER TABLE blog_posts ADD COLUMN canonical_url TEXT",
   ];
   for (const stmt of safeAdds) {
     try { await env.DB.prepare(stmt).run(); } catch (e) { /* column exists or table missing — ignore */ }

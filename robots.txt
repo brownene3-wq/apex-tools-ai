@@ -2,3 +2,7 @@ User-agent: *
 Allow: /
 
 Sitemap: https://apextoolsai.com/sitemap.xml
+
+# Blog RSS feeds
+# https://apextoolsai.com/blog/rss.xml
+# https://apextoolsai.com/es/blog/rss.xml
