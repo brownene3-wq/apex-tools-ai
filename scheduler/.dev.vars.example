@@ -1,0 +1,4 @@
+# Copy to .dev.vars (gitignored) for local `wrangler dev` testing.
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+APEX_API_TOKEN=apx_91fb6b7bd3026d820d87aec4d4bed54e82a6dec1
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

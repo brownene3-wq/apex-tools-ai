@@ -1,0 +1,55 @@
+# Apex Tools AI — Cron Scheduler Worker
+#
+# Standalone Cloudflare Worker that publishes blog posts on a schedule,
+# runs a daily QA sweep, and emails Albert a weekly recap.
+#
+# Deploy:  wrangler deploy
+# Test a cron locally:  wrangler dev --test-scheduled
+# Trigger one cron remotely (after deploy):
+#   curl -X POST "https://apextoolsai-scheduler.<your-subdomain>.workers.dev/__scheduled?cron=5+13+*+*+2"
+#
+# Times are in UTC. Eastern Time = UTC-4 in EDT (Mar-Nov), UTC-5 in EST (Nov-Mar).
+# Using 13:05 UTC = 9:05 AM EDT / 8:05 AM EST — hits "morning" year-round.
+
+name = "apextoolsai-scheduler"
+main = "src/index.js"
+compatibility_date = "2025-05-01"
+
+# ─── Cron triggers ──────────────────────────────────────────────────────────
+# Each cron string maps to a handler in src/index.js#scheduled() via event.cron.
+[triggers]
+crons = [
+  "5 13 * * 2",   # Tuesday 9:05 AM ET — tuesday-article
+  "5 13 * * 4",   # Thursday 9:05 AM ET — thursday-article
+  "5 13 * * 6",   # Saturday 9:05 AM ET — saturday-comparison
+  "0 10 * * *",   # Daily 6:00 AM ET — daily-qa-sweep
+  "5 21 * * 0",   # Sunday 5:05 PM ET — sunday-recap
+]
+
+# ─── Bindings ────────────────────────────────────────────────────────────────
+# Set these via:  wrangler secret put VAR_NAME
+# (Do NOT commit secrets to source.)
+#
+# Required secrets:
+#   ANTHROPIC_API_KEY    — sk-ant-… from console.anthropic.com
+#   APEX_API_TOKEN       — apx_… (already in Cloudflare Pages env; same value)
+#   RESEND_API_KEY       — re_… for the Sunday recap email
+#
+# Non-secret config (vars):
+[vars]
+ANTHROPIC_MODEL    = "claude-sonnet-4-5-20250929"
+APEX_API_BASE      = "https://apextoolsai.com/api"
+SITE_BASE          = "https://apextoolsai.com"
+RECAP_EMAIL_TO     = "hello@apextoolsai.com"
+RECAP_EMAIL_FROM   = "Apex Tools AI Scheduler <hello@apextoolsai.com>"
+NOTIFY_EMAIL_TO    = "hello@apextoolsai.com"
+
+# Observability — logs visible in `wrangler tail` and Cloudflare dashboard
+[observability]
+enabled = true
+
+# Bundle .md prompt templates as text strings (so they can be `import`ed).
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true

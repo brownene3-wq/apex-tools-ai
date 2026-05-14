@@ -1,0 +1,48 @@
+name: Deploy apextoolsai-scheduler
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scheduler/**"
+      - ".github/workflows/deploy-scheduler.yml"
+  workflow_dispatch:        # allow manual one-click deploys from the Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: scheduler/package.json
+
+      - name: Install wrangler
+        run: |
+          cd scheduler
+          npm install --no-save wrangler@^3.90.0
+
+      - name: Push secrets (idempotent)
+        # `wrangler secret put` reads from stdin; we feed the GitHub Secret value.
+        # Running this every deploy is safe — Cloudflare overwrites with same value.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd scheduler
+          echo -n "${{ secrets.ANTHROPIC_API_KEY }}" | npx wrangler secret put ANTHROPIC_API_KEY
+          echo -n "${{ secrets.APEX_API_TOKEN }}"   | npx wrangler secret put APEX_API_TOKEN
+          echo -n "${{ secrets.RESEND_API_KEY }}"   | npx wrangler secret put RESEND_API_KEY
+
+      - name: Deploy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd scheduler
+          npx wrangler deploy
