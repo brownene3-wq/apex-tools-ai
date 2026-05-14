@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 90;
+export const PROMPT_VERSION = 91;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -247,31 +247,6 @@ Don't restart the data collection.
 The ONLY exception: if the caller explicitly says "actually that was wrong, my
 name is X" or "let me give you a different number", then update what you have.
 
-# DO NOT CONTRADICT YOURSELF — CRITICAL
-
-If you previously offered specific slots for a day (e.g., "Tomorrow I have 9 AM,
-11:30, and 2 PM"), you MUST NOT later say that day is "fully booked" or
-"unavailable" unless the caller has explicitly asked for a DIFFERENT day. The
-caller's first response after you offered slots can ONLY mean one of three
-things:
-
-  a) They picked a time you offered → confirm and move on.
-  b) They asked for a different time on the same day → check and respond.
-  c) They asked for a different day → roll forward to that day.
-
-If their response is GARBLED, AMBIGUOUS, or sounds like a bare "no" without
-explanation (e.g., "no hay que dar mañana", "no, no", "no entiendo", a single
-word, static), DO NOT assume rejection. ASK FOR CLARIFICATION:
-
-  - ENGLISH: "Sorry, I want to make sure I got that right — would you like one
-    of those times tomorrow, or a different day?"
-  - SPANISH: "Disculpe, ¿le parece bien una de esas horas mañana, o prefiere
-    otro día?"
-
-NEVER invent reasons like "we're fully booked", "completamente ocupados", or
-"that day is no longer available." If you offered slots a moment ago, those
-slots are STILL available. Treat your own prior offer as ground truth.
-
 # BOOKING APPOINTMENTS
 
 When someone asks to book ANY appointment, follow these steps IN ORDER. Do NOT
@@ -370,18 +345,6 @@ Many US callers say their number with a leading "1" (the country code), like
 digits. Strip the leading 1. Pass only the last 10 digits.
 - WRONG: patientPhone: "17863177581"
 - RIGHT: patientPhone: "7863177581"
-
-# CALLER MAY PAUSE MID-PHONE-NUMBER — DO NOT INTERRUPT
-
-When the caller is giving their phone number, they often speak in groups with
-2-4 second pauses between groups (e.g., "siete ocho seis cuatro... [3 second
-pause] ... cinco cero..."). NEVER respond until you have heard 10 digits OR
-the caller has clearly stopped (e.g., asked you a question, said "that's it",
-"ya", "es todo").
-
-If the digit count so far is less than 10 AND the caller is just pausing,
-WAIT. Do not interrupt with "I have...", "tengo...", or any acknowledgement.
-Stay silent until they finish or ask you something.
 
 # PHONE NUMBER READ-BACK — CRITICAL TURN RULES
 
@@ -915,11 +878,9 @@ based on the language LOCKED at the start of the call. Stay in that language.`;
 export const buildFirstMessage = (client) => {
   const business = client.business_name || 'our practice';
   const langPref = client.language_pref || 'both';
-  // Leading comma — ElevenLabs reads it as a tiny silent pause to buffer the
+  // Lead with a comma — ElevenLabs reads it as a tiny silent pause without
+  // the static/breath sound that "..." was producing. This still buffers the
   // Twilio audio-path setup latency without weird artifacts.
-  // This is the greeting Albert wants — bilingual EN/ES with the practice
-  // name said in both languages. Minor chunk-splice dropout accepted as
-  // tradeoff vs other tradeoffs (voice model change, language drop, etc).
   if (langPref === 'es') return `, Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
   if (langPref === 'en') return `, Thank you for calling ${business}, how can I help you today?`;
   return `, Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
@@ -1003,7 +964,7 @@ export const syncAssistant = async (env, client) => {
       model: 'nova-3',
       language: 'multi',
       numerals: true,
-      endpointing: 300,  // tightened from 500 for faster response (was adding ~200ms latency)
+      endpointing: 500,
       smartFormat: false,
       keywords: ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'cero', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
     },
@@ -1012,22 +973,12 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // ElevenLabs Jessica on eleven_flash_v2_5.
-      // Switched from multilingual_v2 -> flash_v2_5 because flash is built
-      // for streaming on phone lines: chunk splices are tighter, codec
-      // warmup is faster, and Spanish pronunciation is significantly better
-      // (multilingual_v2 had English-accented Spanish on words like 'llamar').
-      // chunkPlan kept for defense-in-depth though flash handles chunks better.
+      // Original ElevenLabs setup — Jessica voice on eleven_multilingual_v2.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
       model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
-      chunkPlan: {
-        enabled: true,
-        minCharacters: 80,
-        punctuationBoundaries: ['|'],
-      },
     },
     server: {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
@@ -1056,19 +1007,8 @@ export const syncAssistant = async (env, client) => {
       // the AI feels slow. With the partial-digit "..." rule removed, we don't
       // need extreme patience — Vapi already buffers user speech with the
       // endpointing setting in the transcriber.
-      // 2026-05-05 (round 2): waitSeconds 0.4 was too aggressive — AI
-      // started interrupting mid-phone-number when caller paused between
-      // digit groups. Bumped 0.4 -> 0.7 and added transcriptionEndpointingPlan
-      // with onNumberSeconds: 2.0 so Vapi waits much longer when it sees
-      // digits in the transcript (caller saying their phone number) but
-      // stays snappy on normal speech.
-      waitSeconds: 0.7,
-      smartEndpointingPlan: { provider: 'livekit', waitFunction: '50 + 2000 * x' },
-      transcriptionEndpointingPlan: {
-        onPunctuationSeconds: 0.2,
-        onNoPunctuationSeconds: 1.0,
-        onNumberSeconds: 3.0,  // Vapi caps this at 3.0; was 2.0 — caller paused 2s+ mid-number
-      },
+      waitSeconds: 1.5,
+      smartEndpointingPlan: { provider: 'livekit', waitFunction: '100 + 5000 * x' },
     },
     // Require more confirmed user audio before the AI stops mid-sentence.
     // Previous (numWords:3, voiceSeconds:0.5) was too sensitive — background
@@ -1083,7 +1023,7 @@ export const syncAssistant = async (env, client) => {
     },
     // After 2 idle messages × 20s intervals + this timeout, the call ends.
     // 25s here means hangup ~10-15s after the last idle prompt finishes.
-    silenceTimeoutSeconds: 35,  // was 25 — extended so idle prompts fire before hangup
+    silenceTimeoutSeconds: 25,
     messagePlan: {
       // Short Spanish-only prompts — bilingual prompts read both languages back
       // to back which felt repetitive. Spanish speakers in South Florida are
@@ -1099,9 +1039,9 @@ export const syncAssistant = async (env, client) => {
       // uses msg.call.monitor.controlUrl (the per-call control URL Vapi
       // provides in webhook payloads) to send language-matched 'still there?'
       // prompts via the say API.
-      idleMessages: ["Are you still there?", "Hello, can you hear me?"],
-      idleTimeoutSeconds: 10,  // was 60 — fire idle prompt at 10s of silence (well before 35s hangup)
-      idleMessageMaxSpokenCount: 2,  // was 1 — give 2 chances before hangup
+      idleMessages: ['¿Hola?'],
+      idleTimeoutSeconds: 60,
+      idleMessageMaxSpokenCount: 1,
     },
     // Vapi caches the previous endCallMessage if we just omit the field — must
     // explicitly send empty string + null to actually clear the English fallback.
