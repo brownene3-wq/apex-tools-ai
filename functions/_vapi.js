@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 87;
+export const PROMPT_VERSION = 88;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -1103,7 +1103,7 @@ export const syncAssistant = async (env, client) => {
     },
     // After 2 idle messages × 20s intervals + this timeout, the call ends.
     // 25s here means hangup ~10-15s after the last idle prompt finishes.
-    silenceTimeoutSeconds: 25,
+    silenceTimeoutSeconds: 35,  // was 25 — extended so idle prompts fire before hangup
     messagePlan: {
       // Short Spanish-only prompts — bilingual prompts read both languages back
       // to back which felt repetitive. Spanish speakers in South Florida are
@@ -1119,9 +1119,9 @@ export const syncAssistant = async (env, client) => {
       // uses msg.call.monitor.controlUrl (the per-call control URL Vapi
       // provides in webhook payloads) to send language-matched 'still there?'
       // prompts via the say API.
-      idleMessages: ['¿Hola?'],
-      idleTimeoutSeconds: 60,
-      idleMessageMaxSpokenCount: 1,
+      idleMessages: ["Are you still there?", "Hello, can you hear me?"],
+      idleTimeoutSeconds: 10,  // was 60 — fire idle prompt at 10s of silence (well before 35s hangup)
+      idleMessageMaxSpokenCount: 2,  // was 1 — give 2 chances before hangup
     },
     // Vapi caches the previous endCallMessage if we just omit the field — must
     // explicitly send empty string + null to actually clear the English fallback.
