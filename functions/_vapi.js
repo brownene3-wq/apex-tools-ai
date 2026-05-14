@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 79;
+export const PROMPT_VERSION = 80;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -1011,16 +1011,24 @@ export const syncAssistant = async (env, client) => {
     backgroundDenoisingEnabled: false,
     voice: {
       // ElevenLabs Jessica on eleven_multilingual_v2.
-      // optimizeStreamingLatency dropped from default 3 -> 2: smoother first-
-      // word audio at the cost of ~150ms additional first-byte latency. This
-      // reduces the Opus->μ-law codec warmup clipping callers hear at the
-      // start of every AI utterance on phone calls.
+      // optimizeStreamingLatency: 2 (default 3) smooths first-word audio at
+      // the cost of ~150ms additional first-byte latency.
+      // chunkPlan: requires 80+ chars before splitting AND removes comma from
+      // punctuation boundaries — fixes the audible click between chunks at
+      // each comma in the greeting (e.g. between 'Dental,' and 'gracias').
+      // Phone lines amplify chunk-splice glitches; keeping chunks longer
+      // produces noticeably smoother audio.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
       model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
       optimizeStreamingLatency: 2,
+      chunkPlan: {
+        enabled: true,
+        minCharacters: 80,
+        punctuationBoundaries: ['.', '?', '!', ';', ':'],
+      },
     },
     server: {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
