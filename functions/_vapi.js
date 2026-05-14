@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 88;
+export const PROMPT_VERSION = 89;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -1028,19 +1028,15 @@ export const syncAssistant = async (env, client) => {
     // HANDLING section) — no need for transcriber-level denoising.
     backgroundDenoisingEnabled: false,
     voice: {
-      // ElevenLabs Jessica on eleven_multilingual_v2.
-      // chunkPlan with minCharacters: 80 + punctuationBoundaries: ['|']
-      // ensures the greeting (~66 chars, no '|' character) is NEVER split
-      // into multiple TTS chunks. Verified via frame-level audio analysis
-      // that Vapi's default chunking caused -72 dB dropouts at the period
-      // between sentences in the greeting. With this config, the whole
-      // greeting is one continuous ElevenLabs stream.
-      // Vapi caps minCharacters at 80, so longer mid-conversation responses
-      // will still chunk normally — but those chunk-splice glitches are less
-      // noticeable mid-conversation than in the first impression greeting.
+      // ElevenLabs Jessica on eleven_flash_v2_5.
+      // Switched from multilingual_v2 -> flash_v2_5 because flash is built
+      // for streaming on phone lines: chunk splices are tighter, codec
+      // warmup is faster, and Spanish pronunciation is significantly better
+      // (multilingual_v2 had English-accented Spanish on words like 'llamar').
+      // chunkPlan kept for defense-in-depth though flash handles chunks better.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
-      model: 'eleven_multilingual_v2',
+      model: 'eleven_flash_v2_5',
       stability: 0.65,
       similarityBoost: 0.85,
       chunkPlan: {
