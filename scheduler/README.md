@@ -6,7 +6,6 @@ Cloudflare Worker that runs the 5 scheduled jobs for apextoolsai.com's blog:
 |------------------|------------------|--------------------------------------|
 | `5 13 * * 2`     | Tue 9:05 AM ET   | Tuesday SEO article                  |
 | `5 13 * * 4`     | Thu 9:05 AM ET   | Thursday case-study article          |
-| `5 13 * * 6`     | Sat 9:05 AM ET   | Saturday competitive comparison      |
 | `0 10 * * *`     | Daily 6:00 AM ET | QA sweep — unpublishes bad posts     |
 | `5 21 * * 0`     | Sun 5:05 PM ET   | Weekly recap email to Albert         |
 

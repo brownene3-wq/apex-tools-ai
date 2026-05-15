@@ -7,7 +7,6 @@
  *
  *   "5 13 * * 2"  → publishTuesdayArticle
  *   "5 13 * * 4"  → publishThursdayArticle
- *   "5 13 * * 6"  → publishSaturdayComparison
  *   "0 10 * * *"  → dailyQaSweep
  *   "5 21 * * 0"  → sundayRecap
  *
@@ -25,7 +24,6 @@
 import {
   publishTuesdayArticle,
   publishThursdayArticle,
-  publishSaturdayComparison,
 } from "./lib/articles.js";
 import { dailyQaSweep } from "./lib/qa.js";
 import { sundayRecap } from "./lib/recap.js";
@@ -34,7 +32,6 @@ import { notifyError } from "./lib/notify.js";
 const CRON_ROUTES = {
   "5 13 * * 2": { name: "tuesday-article",      handler: publishTuesdayArticle },
   "5 13 * * 4": { name: "thursday-article",     handler: publishThursdayArticle },
-  "5 13 * * 6": { name: "saturday-comparison",  handler: publishSaturdayComparison },
   "0 10 * * *": { name: "daily-qa-sweep",       handler: dailyQaSweep },
   "5 21 * * 0": { name: "sunday-recap",         handler: sundayRecap },
 };

@@ -21,7 +21,7 @@ compatibility_date = "2025-05-01"
 crons = [
   "5 13 * * 2",   # Tuesday 9:05 AM ET — tuesday-article
   "5 13 * * 4",   # Thursday 9:05 AM ET — thursday-article
-  "5 13 * * 6",   # Saturday 9:05 AM ET — saturday-comparison
+# Saturday cron removed per Albert (2026-05-14): "blog posts every tuesday and thursday at 9:05"
   "0 10 * * *",   # Daily 6:00 AM ET — daily-qa-sweep
   "5 21 * * 0",   # Sunday 5:05 PM ET — sunday-recap
 ]
