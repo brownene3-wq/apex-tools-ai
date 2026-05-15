@@ -8,6 +8,7 @@
     "dev": "wrangler dev",
     "test-tuesday": "curl -X POST \"${WORKER_URL}/__manual?cron=5+13+*+*+2\" -H \"x-admin-token: ${APEX_API_TOKEN}\"",
     "test-thursday": "curl -X POST \"${WORKER_URL}/__manual?cron=5+13+*+*+4\" -H \"x-admin-token: ${APEX_API_TOKEN}\"",
+    "test-saturday": "curl -X POST \"${WORKER_URL}/__manual?cron=5+13+*+*+6\" -H \"x-admin-token: ${APEX_API_TOKEN}\"",
     "test-qa": "curl -X POST \"${WORKER_URL}/__manual?cron=0+10+*+*+*\" -H \"x-admin-token: ${APEX_API_TOKEN}\"",
     "test-recap": "curl -X POST \"${WORKER_URL}/__manual?cron=5+21+*+*+0\" -H \"x-admin-token: ${APEX_API_TOKEN}\""
   },
