@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 94;
+export const PROMPT_VERSION = 92;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -881,12 +881,9 @@ export const buildFirstMessage = (client) => {
   // Lead with a comma — ElevenLabs reads it as a tiny silent pause without
   // the static/breath sound that "..." was producing. This still buffers the
   // Twilio audio-path setup latency without weird artifacts.
-  // SSML break tag at start gives a real 1.5-second silent pad that absorbs
-  // PSTN+codec warmup before any spoken audio starts. Requires
-  // voice.enableSsmlParsing: true on the assistant (set below in syncAssistant).
-  if (langPref === 'es') return `<break time="1500ms"/>Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
-  if (langPref === 'en') return `<break time="1500ms"/>Thank you for calling ${business}, how can I help you today?`;
-  return `<break time="1500ms"/>Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
+  if (langPref === 'es') return `, Gracias por llamar a ${business}. ¿Cómo puedo ayudarle hoy?`;
+  if (langPref === 'en') return `, Thank you for calling ${business}, how can I help you today?`;
+  return `, Thank you for calling ${business}, gracias por llamar a ${business}. How can I help you today?`;
 };
 
 // Push prompt + first message to Vapi assistant via REST API
@@ -977,15 +974,11 @@ export const syncAssistant = async (env, client) => {
     backgroundDenoisingEnabled: false,
     voice: {
       // Original ElevenLabs setup — Jessica voice on eleven_multilingual_v2.
-      // enableSsmlParsing: true so the <break time="1500ms"/> in firstMessage
-      // produces a real 1.5-sec silent pause before greeting starts. This
-      // absorbs PSTN+codec cold-start so 'Thank you' is never clipped.
       provider: '11labs',
       voiceId: client.voice_id || 'cgSgspJ2msm6clMCkdW9',
       model: 'eleven_multilingual_v2',
       stability: 0.65,
       similarityBoost: 0.85,
-      enableSsmlParsing: true,
     },
     server: {
       url: 'https://apextoolsai.com/api/webhooks/vapi',
