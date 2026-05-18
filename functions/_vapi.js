@@ -6,7 +6,7 @@ const dayNames = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday',
 // Bump this whenever buildSystemPrompt() or syncAssistant payload changes.
 // The webhook checks each client's last_synced_prompt_version and auto-runs
 // syncAssistant before processing a call when this number is higher.
-export const PROMPT_VERSION = 93;
+export const PROMPT_VERSION = 94;
 
 // Lazy-sync helper: if client.last_synced_prompt_version < PROMPT_VERSION,
 // re-push the assistant config to Vapi and bump the stored version.
@@ -347,6 +347,13 @@ when today is jueves is wrong — it sounds like next Thursday. Always anchor wi
 
 9. Wait for explicit "yes" / "sí" before calling bookAppointment.
 
+10. AFTER bookAppointment returns success, you MUST ask the insurance question BEFORE
+    calling endCall. This is REQUIRED. See INSURANCE QUESTION section. Do NOT end the
+    call right after bookAppointment — that skips a required step.
+
+11. AFTER insurance is captured (or caller declined to answer), THEN call endCall with
+    the closing line. Not before.
+
 # PHONE NUMBER PACING IN BOTH READBACKS — SAME PAUSE EVERY TIME
 
 The phone number MUST be spoken in 3-3-4 grouped format BOTH times — the initial
@@ -418,7 +425,11 @@ digits. Strip the leading 1. Pass only the last 10 digits.
 - WRONG: patientPhone: "17863177581"
 - RIGHT: patientPhone: "7863177581"
 
-# INSURANCE QUESTION — AFTER bookAppointment SUCCESS, BEFORE CLOSE
+# INSURANCE QUESTION — MANDATORY, AFTER bookAppointment SUCCESS, BEFORE CLOSE
+
+⚠️ THIS IS REQUIRED. The booking flow does NOT end at bookAppointment. You must ask the
+insurance question on every successful booking. Do not call endCall until insurance is
+captured (or the caller declined to answer).
 
 AFTER bookAppointment returns successfully (or sendUrgentAlert for urgent flow),
 and BEFORE you close the call, ask ONE more question:
@@ -1039,7 +1050,7 @@ export const syncAssistant = async (env, client) => {
           type: 'function',
           function: {
             name: 'endCall',
-            description: 'End the phone call. You MUST pass the closing line as the message parameter — the system speaks it then hangs up. Match the locked language.',
+            description: 'End the phone call. You MUST pass the closing line as the message parameter — the system speaks it then hangs up. Match the locked language. ⚠️ For appointment bookings: only call endCall AFTER you have captured the insurance answer (or caller declined). DO NOT call endCall immediately after bookAppointment — the insurance question is a required step in between.',
             parameters: {
               type: 'object',
               properties: {
