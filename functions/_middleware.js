@@ -105,6 +105,11 @@ const ensureSchemaUpToDate = async (env) => {
     "ALTER TABLE blog_posts ADD COLUMN seo_title TEXT",
     "ALTER TABLE blog_posts ADD COLUMN seo_description TEXT",
     "ALTER TABLE blog_posts ADD COLUMN canonical_url TEXT",
+    // 2026-05-18 — Wave 1 voice-call upgrade: insurance + SMS confirmation
+    "ALTER TABLE appointments ADD COLUMN insurance_carrier TEXT",
+    "ALTER TABLE appointments ADD COLUMN insurance_status TEXT",
+    "ALTER TABLE appointments ADD COLUMN sms_confirmation_sid TEXT",
+    "ALTER TABLE appointments ADD COLUMN sms_confirmation_at INTEGER",
   ];
   for (const stmt of safeAdds) {
     try { await env.DB.prepare(stmt).run(); } catch (e) { /* column exists or table missing — ignore */ }

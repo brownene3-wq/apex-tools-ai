@@ -239,15 +239,34 @@ export async function onRequestPost({ request, env }) {
 
   let chat = await env.DB.prepare('SELECT * FROM website_chats WHERE session_id = ?').bind(sessionId).first().catch(() => null);
   const now = Date.now();
-  let language = requestedLang || chat?.language || detectLanguage(userMessage);
-  if (chat && !requestedLang) {
-    const detected = detectLanguage(userMessage);
-    if (detected !== chat.language) {
-      const strongSwitch = /\b(english please|in english|hablo inglés|en español|spanish please|in spanish|en inglés|en ingles)\b/i.test(userMessage);
-      language = strongSwitch ? detected : chat.language;
+
+  // ---- Language resolution (fixed 2026-05-18) ----
+  // Always re-detect from the user's message. The chatbot widget sends a default
+  // language based on URL path, but if the user types in Spanish on the English
+  // site (or vice versa) we should switch — not blindly trust body.language.
+  const detectedFromMsg = detectLanguage(userMessage);
+  let language;
+  if (chat) {
+    // Existing chat — let language flip only on an explicit switch phrase OR
+    // when the message itself is in a different language with high confidence.
+    const strongSwitch = /\b(english please|in english|hablo inglés|en español|spanish please|in spanish|en inglés|en ingles)\b/i.test(userMessage);
+    if (strongSwitch) {
+      language = detectedFromMsg;
+    } else if (detectedFromMsg !== chat.language) {
+      // Confidence check — only flip when ≥2 Spanish indicators in the message.
+      // Single short word like "ok" or "si" shouldn't flip language permanently.
+      const spanishHits = (userMessage.match(/\b(hola|qué|que|gracias|por favor|sí|cita|consultorio|información|precio|cuánto|cuanto|necesito|quiero|para|cómo|como|funciona|español|tengo|estoy|buenas|disculpe|cuándo|dónde|ayuda|servicio|hablo|llamar|llamo|tienen|hace|hacen)\b/gi) || []).length;
+      const englishHits = (userMessage.match(/\b(hi|hello|the|is|are|can|do|does|what|how|when|where|need|want|please|thanks|thank you|english|service|call|appointment|book)\b/gi) || []).length;
+      if (detectedFromMsg === 'es' && spanishHits >= 2) language = 'es';
+      else if (detectedFromMsg === 'en' && englishHits >= 2) language = 'en';
+      else language = chat.language;
     } else {
       language = chat.language;
     }
+  } else {
+    // First message of the chat — use detectedFromMsg unless the chatbot widget
+    // explicitly requested a language (which itself was based on URL — keep as fallback).
+    language = detectedFromMsg || requestedLang || 'en';
   }
 
   if (!chat) {

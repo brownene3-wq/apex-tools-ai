@@ -99,6 +99,12 @@ CREATE TABLE IF NOT EXISTS appointments (
   caller_number_origin TEXT, -- caller's actual incoming phone (from caller-ID); fallback if patient_phone is wrong/typo'd
   patient_email TEXT,
   service TEXT,
+  -- Insurance (collected after booking confirmation):
+  insurance_carrier TEXT,        -- 'Delta Dental', 'Cigna', 'Aetna', etc.
+  insurance_status TEXT,         -- 'has_insurance' | 'no_insurance' | 'declined_to_answer'
+  -- SMS confirmation tracking:
+  sms_confirmation_sid TEXT,     -- Twilio SID; null if SMS failed or not sent
+  sms_confirmation_at INTEGER,   -- epoch ms when SMS fired
   appointment_at INTEGER NOT NULL,
   status TEXT DEFAULT 'booked', -- booked, confirmed, cancelled, completed, no-show
   notes TEXT,

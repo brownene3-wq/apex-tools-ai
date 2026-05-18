@@ -422,28 +422,89 @@ export async function onRequestPost(context) {
       const args = typeof params === 'string' ? JSON.parse(params) : params;
 
       if (name === 'bookAppointment') {
-        // Comprehensive phone parsing — handles any natural format
-        const digits = parsePhoneNumber(args.patientPhone);
-        const validPhone = digits !== null;
+        // CALLER-ID SHORTCUT: if useCallerNumber=true, take phone from the incoming caller-ID
+        // (skips the patientPhone validation entirely).
+        const originNumber = msg.call?.customer?.number || msg.customer?.number || null;
+        const useCallerNumber = args.useCallerNumber === true || args.useCallerNumber === 'true';
+
+        let digits = null;
+        let patientPhoneE164 = null;
+        if (useCallerNumber) {
+          // Strip non-digits from caller-ID; require at least 10 digits
+          const stripped = String(originNumber || '').replace(/[^\d]/g, '');
+          if (stripped.length < 10) {
+            await logUsage(env, client.id, 'appointment_rejected_bad_data', { reason: 'no_caller_id', useCallerNumber: true });
+            responses.push({
+              toolCallId: fc.id,
+              result: "Caller-ID is not available (call from blocked/private number). Ask the caller for their phone number and pass it as patientPhone — 10 digits."
+            });
+            continue;
+          }
+          digits = stripped.slice(-10);
+          patientPhoneE164 = '+1' + digits;
+        } else {
+          // Standard path: caller spoke their phone, AI must pass it as digits
+          digits = parsePhoneNumber(args.patientPhone);
+          if (!digits) {
+            await logUsage(env, client.id, 'appointment_rejected_bad_data', { reason: 'invalid_phone', got_phone: args.patientPhone });
+            responses.push({
+              toolCallId: fc.id,
+              result: `I need a complete 10-digit US phone number passed as digits only (got: "${args.patientPhone || 'empty'}"). Ask the caller to repeat or offer the caller-ID shortcut: "should I use the number you're calling from?"`
+            });
+            continue;
+          }
+          patientPhoneE164 = '+1' + digits.slice(-10);
+        }
+
         const validName = (args.patientName || '').trim().length >= 2;
-        if (!validPhone || !validName) {
-          await logUsage(env, client.id, 'appointment_rejected_bad_data', { reason: !validPhone ? 'invalid_phone' : 'invalid_name', got_phone: rawPhone, got_name: args.patientName });
+        if (!validName) {
+          await logUsage(env, client.id, 'appointment_rejected_bad_data', { reason: 'invalid_name', got_name: args.patientName });
           responses.push({
             toolCallId: fc.id,
-            result: !validPhone
-              ? `I need a complete 10-digit US phone number passed as digits only (got: "${args.patientPhone || 'empty'}", parsed to ${digits.length} digits). Ask the caller to repeat their phone number and pass the result as digits like "7863177581" — not as Spanish/English words and not duplicated.`
-              : "I need a full first and last name (first + last) before booking. Please ask the caller for their full name."
+            result: "I need a full first and last name (first + last) before booking. Please ask the caller for their full name."
           });
           continue;
         }
         const apptId = newId('appt');
         const apptAt = args.requestedDateTime ? new Date(args.requestedDateTime).getTime() : (Date.now() + 86400000);
-        const originNumber = msg.call?.customer?.number || msg.customer?.number || null;
+
+        // Insurance fields (optional)
+        const insuranceCarrier = (args.insuranceCarrier || '').toString().trim() || null;
+        const validInsStatus = ['has_insurance', 'no_insurance', 'declined_to_answer'];
+        const insuranceStatus = validInsStatus.includes(args.insuranceStatus) ? args.insuranceStatus : null;
+
         await env.DB.prepare(
-          `INSERT INTO appointments (id, client_id, patient_name, patient_phone, caller_number_origin, service, appointment_at, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(apptId, client.id, args.patientName.trim(), '+1' + digits.slice(-10), originNumber, args.appointmentType || '', apptAt, 'booked', Date.now()).run();
-        await logUsage(env, client.id, 'appointment_booked', { name: args.patientName });
+          `INSERT INTO appointments (id, client_id, patient_name, patient_phone, caller_number_origin, service, insurance_carrier, insurance_status, appointment_at, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(apptId, client.id, args.patientName.trim(), patientPhoneE164, originNumber, args.appointmentType || '', insuranceCarrier, insuranceStatus, apptAt, 'booked', Date.now()).run();
+        await logUsage(env, client.id, 'appointment_booked', { name: args.patientName, useCallerNumber, insuranceStatus });
+
+        // --- SMS CONFIRMATION TO PATIENT (Wave 1 #6) ---
+        // Fire after successful insert. Best-effort: log SID, don't fail booking on SMS error.
+        try {
+          const apptDate = new Date(apptAt);
+          const tz = client.timezone || 'America/New_York';
+          const friendlyDate = apptDate.toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', timeZone: tz,
+          });
+          const businessName = client.business_name || 'your practice';
+          const businessPhone = client.business_phone || '';
+          const patientLang = msg.call?.language || msg.language || 'en';
+          const isSpanish = String(patientLang).toLowerCase().startsWith('es');
+          const smsBody = isSpanish
+            ? `Cita confirmada en ${businessName} para ${args.patientName.trim()}: ${friendlyDate} (${args.appointmentType || 'visita general'}). ${businessPhone ? 'Llame al ' + businessPhone + ' si necesita reagendar.' : ''} Responda CANCELAR para cancelar.`
+            : `Appointment confirmed at ${businessName} for ${args.patientName.trim()}: ${friendlyDate} (${args.appointmentType || 'general visit'}). ${businessPhone ? 'Call ' + businessPhone + ' to reschedule.' : ''} Reply CANCEL to cancel.`;
+          const smsRes = await sendSMS(env, { to: patientPhoneE164, body: smsBody });
+          if (smsRes.ok) {
+            await env.DB.prepare(
+              `UPDATE appointments SET sms_confirmation_sid = ?, sms_confirmation_at = ? WHERE id = ?`
+            ).bind(smsRes.sid, Date.now(), apptId).run();
+            await logUsage(env, client.id, 'appt_confirmation_sms_sent_to_patient', { sid: smsRes.sid });
+          } else {
+            await logUsage(env, client.id, 'appt_confirmation_sms_failed', { reason: smsRes.reason });
+          }
+        } catch (e) { console.error('[patient sms]', e); }
 
         if (client.notify_appointment === 1 || client.notify_appointment === null) {
           const apptDate = new Date(apptAt);
