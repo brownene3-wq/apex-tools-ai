@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Thank you — Apex Tools AI</title>
+  <link rel="icon" type="image/png" href="/apex-logo-dark.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .font-display { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #312e81 100%); }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-6 text-white">
+  <div class="max-w-2xl w-full bg-white text-slate-900 rounded-3xl shadow-2xl p-10 md:p-14 text-center">
+    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <i data-lucide="check" class="w-10 h-10 text-green-600"></i>
+    </div>
+    <h1 class="font-display text-3xl md:text-4xl font-extrabold mb-4" id="title">Welcome aboard! 🎉</h1>
+    <p class="text-slate-600 text-lg mb-8" id="subtitle">
+      Your payment went through. We're already getting your AI receptionist ready.
+    </p>
+
+    <div class="bg-slate-50 rounded-2xl p-6 text-left mb-8">
+      <h2 class="font-display font-bold text-lg mb-4">What happens next:</h2>
+      <ol class="space-y-3 text-slate-700">
+        <li class="flex gap-3"><span class="font-bold text-orange-500">1.</span><span>You'll get a confirmation email from Stripe with your receipt within 1 minute.</span></li>
+        <li class="flex gap-3"><span class="font-bold text-orange-500">2.</span><span>Within 1 business day, Albert (founder) will personally email you a short onboarding form (10 questions: practice name, hours, services, calendar tool, languages, top FAQs).</span></li>
+        <li class="flex gap-3"><span class="font-bold text-orange-500">3.</span><span>Within 5 business days, your AI receptionist is live on a temporary number you can test before porting your real number.</span></li>
+        <li class="flex gap-3"><span class="font-bold text-orange-500">4.</span><span>30-day money-back guarantee — if it doesn't work for your practice, full refund, no questions asked.</span></li>
+      </ol>
+    </div>
+
+    <p class="text-sm text-slate-500 mb-6">
+      Questions? Email <a href="mailto:hello@apextoolsai.com" class="font-semibold text-orange-600 hover:text-orange-700">hello@apextoolsai.com</a> or call <a href="tel:+19544756922" class="font-semibold text-orange-600 hover:text-orange-700">(954) 475-6922</a>.
+    </p>
+
+    <a href="/" class="inline-block bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-full transition-colors">Back to home</a>
+  </div>
+
+  <script>
+    // Translate to Spanish if &lang=es is in the URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('lang') === 'es') {
+      document.documentElement.lang = 'es';
+      document.getElementById('title').textContent = '¡Bienvenido a bordo! 🎉';
+      document.getElementById('subtitle').textContent = 'Su pago fue procesado exitosamente. Ya estamos preparando su recepcionista de IA.';
+      document.querySelector('h2.font-display').textContent = 'Qué sigue:';
+      const items = document.querySelectorAll('ol li span:last-child');
+      items[0].textContent = 'Recibirá un correo de confirmación de Stripe con su recibo en menos de 1 minuto.';
+      items[1].textContent = 'En 1 día hábil, Albert (fundador) le enviará personalmente un formulario corto de onboarding (10 preguntas: nombre del consultorio, horarios, servicios, calendario, idiomas, preguntas frecuentes).';
+      items[2].textContent = 'En 5 días hábiles, su recepcionista de IA estará activo en un número temporal para que pueda probarlo antes de portar su número real.';
+      items[3].textContent = 'Garantía de devolución de 30 días — si no funciona para su consultorio, reembolso completo, sin preguntas.';
+      document.querySelector('a[href="/"]').textContent = 'Volver al inicio';
+    }
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  </script>
+</body>
+</html>

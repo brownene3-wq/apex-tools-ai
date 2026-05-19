@@ -565,7 +565,7 @@
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Alertas SMS para llamadas urgentes</span></li>
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Reportes mensuales de desempeño</span></li>
         </ul>
-        <a href="#book" class="block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Comenzar</a>
+        <button type="button" data-checkout-tier="phone" data-checkout-lang="es" class="w-full block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Comenzar</button>
       </div>
 
       <div class="relative bg-navy-900 text-white rounded-3xl p-8 border-2 border-accent-500 hover:shadow-2xl hover:shadow-accent-500/20 transition-all transform md:scale-105 reveal">
@@ -593,7 +593,7 @@
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-400 flex-shrink-0 mt-0.5"></i><span>Soporte prioritario</span></li>
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-400 flex-shrink-0 mt-0.5"></i><span>Revisión estratégica trimestral</span></li>
         </ul>
-        <a href="#book" class="block text-center bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-full transition-colors">Comenzar</a>
+        <button type="button" data-checkout-tier="bundle" data-checkout-lang="es" class="w-full block text-center bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-full transition-colors">Comenzar</button>
       </div>
 
       <div class="bg-white rounded-3xl p-8 border border-navy-100 hover:shadow-2xl transition-all reveal">
@@ -619,7 +619,7 @@
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Notificaciones por email de nuevos leads</span></li>
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Reportes mensuales de interacción</span></li>
         </ul>
-        <a href="#book" class="block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Comenzar</a>
+        <button type="button" data-checkout-tier="chatbot" data-checkout-lang="es" class="w-full block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Comenzar</button>
       </div>
     </div>
 
@@ -846,12 +846,4 @@
       const targetId = link.getAttribute('href');
       if (targetId === '#') return;
       const target = document.querySelector(targetId);
-      if (target) {
-        e.preventDefault();
-        const top = target.getBoundingClientRect().top + window.pageYOffset - 80;
-        window.scrollTo({ top, behavior: 'smooth' });
-      }
-    });
-  });
-</script>
-</b
+      if 

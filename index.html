@@ -591,7 +591,7 @@
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Urgent call alerts via SMS</span></li>
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Monthly performance reports</span></li>
         </ul>
-        <a href="#book" class="block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Get Started</a>
+        <button type="button" data-checkout-tier="phone" class="w-full block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Get Started</button>
       </div>
 
       <!-- Plan 2: Bundle (Featured) -->
@@ -620,7 +620,7 @@
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-400 flex-shrink-0 mt-0.5"></i><span>Priority support</span></li>
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-400 flex-shrink-0 mt-0.5"></i><span>Quarterly strategy review</span></li>
         </ul>
-        <a href="#book" class="block text-center bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-full transition-colors">Get Started</a>
+        <button type="button" data-checkout-tier="bundle" class="w-full block text-center bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-full transition-colors">Get Started</button>
       </div>
 
       <!-- Plan 3: Chatbot only -->
@@ -647,7 +647,7 @@
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Email notifications for new leads</span></li>
           <li class="flex items-start gap-2.5"><i data-lucide="check" class="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"></i><span>Monthly engagement reports</span></li>
         </ul>
-        <a href="#book" class="block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Get Started</a>
+        <button type="button" data-checkout-tier="chatbot" class="w-full block text-center bg-navy-50 hover:bg-navy-100 text-navy-900 font-semibold py-3 rounded-full transition-colors">Get Started</button>
       </div>
     </div>
 
@@ -892,9 +892,4 @@
       if (target) {
         e.preventDefault();
         const offset = 80;
-        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
-        window.scrollTo({ top, behavior: 'smooth' });
-      }
-    });
-  });
-</script
+        const top = target.getBo
