@@ -372,4 +372,3 @@ export async function onRequestPost({ request, env }) {
     cta: markers.cta || null,
   });
 }
-      
