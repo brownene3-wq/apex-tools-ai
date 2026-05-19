@@ -63,7 +63,7 @@ Skip dev/staging for trivial copy edits — push directly to `main` if it's a ty
 Open `index.html` (English) or `es/index.html` (Spanish). All copy is plain text inside HTML elements. Find the text you want to change, edit, save, commit, push.
 
 ### Update pricing
-Search for `$2,500`, `$400`, `$1,000`, etc. in both `index.html` and `es/index.html`. Update both files when changing prices.
+Search for `$995`, `$400`, `$299`, etc. in both `index.html` and `es/index.html`. Update both files when changing prices.
 
 ### Update demo phone number
 Search for `+19549999999` and `(954) 999-9999` in both files. Replace with the real Twilio demo number once provisioned.
@@ -128,4 +128,3 @@ Copy any existing `<section>` block as a template. Sections use Tailwind utility
 ## License
 
 Proprietary. © 2026 Apex Tools AI. All rights reserved.
-<!-- deploy-trigger: 1777933610 -->
