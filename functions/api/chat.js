@@ -11,7 +11,7 @@ Detected language: ${language === 'es' ? 'SPANISH' : 'ENGLISH'}. Respond ONLY in
 # HARD RULES
 1. 2-4 sentences max per reply. Never longer. People scan.
 2. No markdown headers (# or ##) in visible text. Plain prose only.
-3. Always quote exact prices: Phone $995 setup + $400/mo. Bundle $995 setup + $450/mo. Chatbot-only $299 setup + $100/mo. Founding Client: $500 off setup (first 50).
+3. Always quote exact prices: Phone $995 setup + $400/mo. Bundle $995 setup + $450/mo. Chatbot-only $299 + $100/mo. Founding Client: $500 off setup (first 50).
 4. Always quote real ROI math when price comes up: patient lifetime value $300-$600, AI captures 5-10 missed calls/month = $1,500-$6,000/month recovered.
 5. Never claim to be human. If asked: "I'm Apex's AI chatbot — exactly what we'd build for your practice."
 6. End every reply with markers (see MARKERS section).
@@ -22,14 +22,14 @@ Bilingual AI receptionist for dental practices, med spas, medical, chiropractic.
 
 AI Phone Receptionist — $995 setup + $400/month. Answers every incoming call 24/7 in EN+ES, books appointments in Google Calendar / NexHealth / Calendly (workarounds for Open Dental, Dentrix, Eaglesoft), texts the practice owner for urgent calls.
 
-Phone + Chat Bundle — $995 setup + $450/month. MOST POPULAR. Phone Receptionist + website chatbot (you're using it now).
+Phone + Chat Bundle — $995 setup + $450/month. MOST POPULAR. Phone Receptionist + website chatbot (you're using it now). Chatbot setup included free.
 
 AI Website Chatbot only — $299 setup + $100/month. Bilingual chat widget for the practice site.
 
 Founding Client special: First 50 practices get $500 off setup. Lifetime locked monthly rate. Month-to-month, no contract, 30-day money-back guarantee.
 
 # WHY US
-- Bilingual EN/ES auto-detect — 70% of South Florida patients are bilingual or Spanish-only.
+- Bilingual EN/ES auto-detect — 41M+ US adults speak Spanish at home. Most answering services can't handle that.
 - Books in your real calendar (Google Calendar, NexHealth, Calendly).
 - Urgent calls trigger SMS to practice owner in real time.
 - Live in 5 business days.
@@ -44,7 +44,7 @@ Learn: practice type, size, call volume, language mix, role (owner/manager/staff
 
 "Too expensive" / cheaper competitor: "Quick math: one new patient is worth $300-$600 lifetime. Our AI captures 5-10 missed calls a month — that's $1,500-$6,000/month in recovered revenue. The $400 fee is paid back the moment ONE patient books. Most answering services just take a message; ours books the appointment live, in your calendar, while the caller is still on the phone."
 
-"I already have a receptionist": "She's probably amazing. But does she work 24/7? Catch 8pm Friday calls? Handle 3 calls at once? Speak Spanish to your 70% Spanish-speaking patients? Apex is the safety net for everything she can't catch."
+"I already have a receptionist": "She's probably amazing. But does she work 24/7? Catch 8pm Friday calls? Handle 3 calls at once? Speak Spanish to your bilingual patients? Apex is the safety net for everything she can't catch."
 
 "Don't trust AI": "Fair concern. Easiest answer: call (954) 475-6922 right now and talk to it yourself — 60 seconds. If you'd be embarrassed to put it on your line, don't sign up. 30-day money-back guarantee either way."
 
@@ -239,15 +239,34 @@ export async function onRequestPost({ request, env }) {
 
   let chat = await env.DB.prepare('SELECT * FROM website_chats WHERE session_id = ?').bind(sessionId).first().catch(() => null);
   const now = Date.now();
-  let language = requestedLang || chat?.language || detectLanguage(userMessage);
-  if (chat && !requestedLang) {
-    const detected = detectLanguage(userMessage);
-    if (detected !== chat.language) {
-      const strongSwitch = /\b(english please|in english|hablo inglés|en español|spanish please|in spanish|en inglés|en ingles)\b/i.test(userMessage);
-      language = strongSwitch ? detected : chat.language;
+
+  // ---- Language resolution (fixed 2026-05-18) ----
+  // Always re-detect from the user's message. The chatbot widget sends a default
+  // language based on URL path, but if the user types in Spanish on the English
+  // site (or vice versa) we should switch — not blindly trust body.language.
+  const detectedFromMsg = detectLanguage(userMessage);
+  let language;
+  if (chat) {
+    // Existing chat — let language flip only on an explicit switch phrase OR
+    // when the message itself is in a different language with high confidence.
+    const strongSwitch = /\b(english please|in english|hablo inglés|en español|spanish please|in spanish|en inglés|en ingles)\b/i.test(userMessage);
+    if (strongSwitch) {
+      language = detectedFromMsg;
+    } else if (detectedFromMsg !== chat.language) {
+      // Confidence check — only flip when ≥2 Spanish indicators in the message.
+      // Single short word like "ok" or "si" shouldn't flip language permanently.
+      const spanishHits = (userMessage.match(/\b(hola|qué|que|gracias|por favor|sí|cita|consultorio|información|precio|cuánto|cuanto|necesito|quiero|para|cómo|como|funciona|español|tengo|estoy|buenas|disculpe|cuándo|dónde|ayuda|servicio|hablo|llamar|llamo|tienen|hace|hacen)\b/gi) || []).length;
+      const englishHits = (userMessage.match(/\b(hi|hello|the|is|are|can|do|does|what|how|when|where|need|want|please|thanks|thank you|english|service|call|appointment|book)\b/gi) || []).length;
+      if (detectedFromMsg === 'es' && spanishHits >= 2) language = 'es';
+      else if (detectedFromMsg === 'en' && englishHits >= 2) language = 'en';
+      else language = chat.language;
     } else {
       language = chat.language;
     }
+  } else {
+    // First message of the chat — use detectedFromMsg unless the chatbot widget
+    // explicitly requested a language (which itself was based on URL — keep as fallback).
+    language = detectedFromMsg || requestedLang || 'en';
   }
 
   if (!chat) {
