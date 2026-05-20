@@ -90,6 +90,7 @@
         <a href="#demo" class="hover:text-accent-500 transition-colors">Demo en Vivo</a>
         <a href="#pricing" class="hover:text-accent-500 transition-colors">Precios</a>
         <a href="#faq" class="hover:text-accent-500 transition-colors">Preguntas</a>
+        <a href="/blog" class="hover:text-accent-500 transition-colors">Blog</a>
       </nav>
 
       <div class="flex items-center gap-3">
@@ -719,6 +720,24 @@
   </div>
 </section>
 
+<!-- BLOG SECTION -->
+<section id="blog" class="py-20 lg:py-28 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-14 reveal">
+      <div class="inline-block bg-accent-500/10 text-accent-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-4">Del blog</div>
+      <h2 class="font-display text-4xl lg:text-5xl font-extrabold text-navy-900 mb-4">Ideas para consultorios modernos</h2>
+      <p class="text-lg text-navy-600 max-w-2xl mx-auto">Guías, comparaciones y consejos prácticos sobre recepcionistas con IA, comunicación bilingüe con pacientes y el crecimiento de su consultorio.</p>
+    </div>
+    <div id="blog-grid" class="grid md:grid-cols-3 gap-6 lg:gap-8"></div>
+    <div class="text-center mt-12 reveal">
+      <a href="/blog" class="inline-flex items-center gap-2 bg-navy-900 hover:bg-navy-800 text-white font-semibold px-7 py-3.5 rounded-full transition-colors">
+        Ver todos los artículos
+        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </a>
+    </div>
+  </div>
+</section>
+
 <!-- FINAL CTA -->
 <section id="book" class="py-20 lg:py-32 bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 text-white relative overflow-hidden">
   <div class="absolute top-0 left-1/4 w-96 h-96 bg-accent-500/20 rounded-full blur-3xl"></div>
@@ -775,6 +794,7 @@
           <li><a href="#how-it-works" class="hover:text-accent-400 transition-colors">Chatbot IA Web</a></li>
           <li><a href="#pricing" class="hover:text-accent-400 transition-colors">Precios</a></li>
           <li><a href="#demo" class="hover:text-accent-400 transition-colors">Demo en Vivo</a></li>
+          <li><a href="/blog" class="hover:text-accent-400 transition-colors">Blog</a></li>
         </ul>
       </div>
 
@@ -852,6 +872,35 @@ fetch('/api/auth/me', { credentials: 'include' })
     }
   })
   .catch(() => {});
+</script>
+<script>
+  (function () {
+    var grid = document.getElementById('blog-grid');
+    var sec = document.getElementById('blog');
+    if (!grid) return;
+    var esc = function (s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+      });
+    };
+    fetch('/api/posts')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var posts = (data.posts || []).filter(function (p) { return p.language === 'es'; }).slice(0, 3);
+        if (!posts.length) { if (sec) sec.style.display = 'none'; return; }
+        grid.innerHTML = posts.map(function (p) {
+          return '<a href="/blog/' + esc(p.slug) + '" class="group block bg-white rounded-3xl overflow-hidden border border-navy-100 hover:shadow-2xl transition-all">'
+            + '<div class="aspect-video overflow-hidden bg-navy-100">'
+            + (p.cover_image_url ? '<img src="' + esc(p.cover_image_url) + '" alt="" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">' : '')
+            + '</div><div class="p-6">'
+            + '<span class="text-xs font-semibold text-accent-600 uppercase tracking-wide">' + esc(p.tag || 'Artículo') + '</span>'
+            + '<h3 class="font-display font-bold text-lg text-navy-900 mt-2 mb-2 leading-snug group-hover:text-accent-600 transition-colors">' + esc(p.title) + '</h3>'
+            + '<p class="text-sm text-navy-600 leading-relaxed">' + esc(p.excerpt || '') + '</p>'
+            + '</div></a>';
+        }).join('');
+      })
+      .catch(function () { if (sec) sec.style.display = 'none'; });
+  })();
 </script>
 <script src="/chatbot.js" defer></script>
 </body>
