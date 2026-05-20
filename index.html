@@ -892,4 +892,42 @@
       if (target) {
         e.preventDefault();
         const offset = 80;
-        const top = target.getBo
+        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+
+  // Stripe Checkout: handle "Get Started" button clicks on pricing cards
+  document.querySelectorAll('[data-checkout-tier]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const tier = btn.getAttribute('data-checkout-tier');
+      const lang = btn.getAttribute('data-checkout-lang') || 'en';
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = lang === 'es' ? 'Cargando…' : 'Loading…';
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tier, lang }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.url) {
+          throw new Error(data.error || 'Checkout failed');
+        }
+        window.location.href = data.url;
+      } catch (err) {
+        console.error('Checkout error:', err);
+        btn.disabled = false;
+        btn.textContent = originalText;
+        alert(lang === 'es'
+          ? 'Lo sentimos, hubo un problema iniciando el pago. Por favor intente de nuevo o escríbanos a hello@apextoolsai.com'
+          : "Sorry, we couldn't start checkout. Please try again or email hello@apextoolsai.com");
+      }
+    });
+  });
+</script>
+</body>
+</html>
