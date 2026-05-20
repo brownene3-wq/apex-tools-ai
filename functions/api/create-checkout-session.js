@@ -65,9 +65,9 @@ export async function onRequestPost(context) {
   params.append('line_items[1][quantity]', '1');
 
   // Collect customer info
+  // (customer_creation is not needed in subscription mode — a Customer is always created)
   params.append('billing_address_collection', 'required');
   params.append('phone_number_collection[enabled]', 'true');
-  params.append('customer_creation', 'always');
 
   // Allow promo codes (you can disable this later by removing this line)
   params.append('allow_promotion_codes', 'true');
