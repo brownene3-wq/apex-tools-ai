@@ -19,7 +19,7 @@
   };
   const lang = detectLang();
 
-  const T = {
+  const TALL = {
     en: {
       bubble: 'Chat with us',
       headerTitle: 'Apex Tools AI',
@@ -66,7 +66,9 @@
       ctaPricing: '💰 Ver precios completos',
       newMsg: 'Mensaje nuevo',
     },
-  }[lang];
+  };
+  const T = TALL[lang];
+  let convoLang = lang;  // tracks the language of the live conversation
 
   // ----- Styles -----
   const style = document.createElement('style');
@@ -367,9 +369,9 @@
     $ctaRow.innerHTML = '';
     if (!cta) return;
     const map = {
-      call_demo: { label: T.ctaCallDemo, href: 'tel:+19544756922' },
-      book: { label: T.ctaBook, href: 'https://cal.com/apextoolsai/discovery' },
-      pricing: { label: T.ctaPricing, href: '/#pricing' },
+      call_demo: { label: TALL[convoLang].ctaCallDemo, href: 'tel:+19544756922' },
+      book: { label: TALL[convoLang].ctaBook, href: 'https://cal.com/apextoolsai/discovery' },
+      pricing: { label: TALL[convoLang].ctaPricing, href: '/#pricing' },
     };
     const c = map[cta];
     if (!c) return;
@@ -418,6 +420,7 @@
         history.push({ role: 'bot', text: errText });
       } else {
         if (data.sessionId) sessionId = data.sessionId;
+        if (data.language === 'es' || data.language === 'en') convoLang = data.language;
         const reply = data.reply || T.errorGeneric;
         renderMessage('bot', reply);
         history.push({ role: 'bot', text: reply, cta: data.cta || null, suggest: data.suggest || null });
