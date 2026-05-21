@@ -121,7 +121,7 @@ gtag('config', 'G-ZDRHSN0YYR');
     <div class="flex gap-5"><a href="/privacy.html" class="hover:text-white">Privacy</a><a href="/terms.html" class="hover:text-white">Terms</a><a href="${baseUrl}/rss.xml" class="hover:text-white">RSS</a></div>
   </div>
 </footer>
-<script src="/chatbot.js" defer></script>
+<script src="/chatbot.js?v=20260519" defer></script>
 </body>
 </html>`;
 
