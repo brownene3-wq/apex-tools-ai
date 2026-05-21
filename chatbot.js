@@ -330,6 +330,147 @@
     return row;
   };
 
+  // ----- Typing indicator -----
   const showTyping = () => {
     const row = document.createElement('div');
-    r
+    row.className = 'apex-msg-row bot';
+    row.setAttribute('data-typing', '1');
+    row.innerHTML = `
+      <div class="apex-msg-avatar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="apex-msg bot typing"><span class="apex-typing-dots"><span></span><span></span><span></span></span></div>`;
+    $messages.appendChild(row);
+    $messages.scrollTop = $messages.scrollHeight;
+    return row;
+  };
+
+  // ----- Suggestion chips -----
+  const renderQuickReplies = (items) => {
+    $quick.innerHTML = '';
+    (items || []).forEach((item) => {
+      const label = typeof item === 'string' ? item : item.label;
+      const text = typeof item === 'string' ? item : (item.text || item.label);
+      if (!label) return;
+      const btn = document.createElement('button');
+      btn.className = 'apex-quick-btn';
+      btn.textContent = label;
+      btn.addEventListener('click', () => { sendMessage(text); });
+      $quick.appendChild(btn);
+    });
+  };
+
+  // ----- Inline CTA button -----
+  const renderCTA = (cta) => {
+    $ctaRow.innerHTML = '';
+    if (!cta) return;
+    const map = {
+      call_demo: { label: T.ctaCallDemo, href: 'tel:+19544756922' },
+      book: { label: T.ctaBook, href: 'https://cal.com/apextoolsai/discovery' },
+      pricing: { label: T.ctaPricing, href: '/#pricing' },
+    };
+    const c = map[cta];
+    if (!c) return;
+    const a = document.createElement('a');
+    a.className = 'apex-cta-btn';
+    a.textContent = c.label;
+    a.href = c.href;
+    if (c.href.indexOf('http') === 0) { a.target = '_blank'; a.rel = 'noopener'; }
+    $ctaRow.appendChild(a);
+  };
+
+  // ----- Send a message to the chat API -----
+  async function sendMessage(text) {
+    text = (text || '').trim();
+    if (!text || sending) return;
+    sending = true;
+    $send.disabled = true;
+    $input.value = '';
+    $quick.innerHTML = '';
+    $ctaRow.innerHTML = '';
+
+    renderMessage('user', text);
+    history.push({ role: 'user', text });
+
+    const typingRow = showTyping();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          sessionId: sessionId || undefined,
+          language: lang,
+          pageUrl: window.location.href,
+          referrer: document.referrer || '',
+        }),
+      });
+      let data = {};
+      try { data = await res.json(); } catch (e) { data = {}; }
+      if (typingRow) typingRow.remove();
+
+      if (!res.ok || data.error) {
+        const errText = res.status === 429 ? T.errorRate : (data.error || T.errorGeneric);
+        renderMessage('bot', errText);
+        history.push({ role: 'bot', text: errText });
+      } else {
+        if (data.sessionId) sessionId = data.sessionId;
+        const reply = data.reply || T.errorGeneric;
+        renderMessage('bot', reply);
+        history.push({ role: 'bot', text: reply, cta: data.cta || null, suggest: data.suggest || null });
+        if (data.suggest && data.suggest.length) renderQuickReplies(data.suggest);
+        renderCTA(data.cta);
+      }
+    } catch (e) {
+      if (typingRow) typingRow.remove();
+      renderMessage('bot', T.errorGeneric);
+      history.push({ role: 'bot', text: T.errorGeneric });
+    }
+
+    saveState({ sessionId: sessionId, history: history.slice(-40) });
+    sending = false;
+    $send.disabled = false;
+    $input.focus();
+  }
+
+  // ----- Open / close -----
+  const openWidget = () => {
+    widget.classList.add('open');
+    bubble.style.display = 'none';
+    opened = true;
+    if ($badge) $badge.style.display = 'none';
+    $input.focus();
+    $messages.scrollTop = $messages.scrollHeight;
+  };
+  const closeWidget = () => {
+    widget.classList.remove('open');
+    bubble.style.display = '';
+    opened = false;
+  };
+
+  // ----- Events -----
+  bubble.addEventListener('click', openWidget);
+  $close.addEventListener('click', closeWidget);
+  $send.addEventListener('click', () => sendMessage($input.value));
+  $input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendMessage($input.value); }
+  });
+
+  // ----- Initial render -----
+  if (history.length) {
+    history.forEach((m) => renderMessage(m.role, m.text));
+    const last = history[history.length - 1];
+    if (last && last.role === 'bot') {
+      if (last.suggest && last.suggest.length) renderQuickReplies(last.suggest);
+      renderCTA(last.cta);
+    }
+  } else {
+    renderMessage('bot', T.greeting);
+    history.push({ role: 'bot', text: T.greeting });
+    renderQuickReplies(T.quickReplies);
+    saveState({ sessionId: sessionId, history: history });
+  }
+})();
