@@ -421,6 +421,10 @@
       } else {
         if (data.sessionId) sessionId = data.sessionId;
         if (data.language === 'es' || data.language === 'en') convoLang = data.language;
+        // Sync the widget's own UI (placeholder, header subtitle) to the conversation language
+        $input.placeholder = TALL[convoLang].placeholder;
+        var subEl = widget.querySelector('.apex-chat-sub');
+        if (subEl) subEl.textContent = TALL[convoLang].headerSubtitle;
         const reply = data.reply || T.errorGeneric;
         renderMessage('bot', reply);
         history.push({ role: 'bot', text: reply, cta: data.cta || null, suggest: data.suggest || null });
